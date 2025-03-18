@@ -654,7 +654,7 @@
                         canvasRight.changePerspectiveTo([canvasLeft.alpha , canvasLeft.beta + beta_delta_degrees]);
                     }
                 }
-                prev_gyro = [...cur_gyro];
+                prev_gyro = {...cur_gyro};
                 prev_timestamp = cur_timestamp;
             }
         </script>
