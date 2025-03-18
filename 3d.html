@@ -634,14 +634,14 @@
                         *((cur_timestamp - prev_timestamp)/1000)
                     )/stability_factor;
 
-                    const alpha_delta_degrees = Math.floor(toDegrees(alpha_delta_radians));
+                    const alpha_delta_degrees = toDegrees(alpha_delta_radians);
                     console.log("alpha_delta_degrees:", alpha_delta_degrees);
 
                     const beta_delta_radians = (
                         ((prev_gyro.y + cur_gyro.y)/2)
                         *((cur_timestamp - prev_timestamp)/1000)
                     )/stability_factor;
-                    const beta_delta_degrees = Math.floor(toDegrees(beta_delta_radians));
+                    const beta_delta_degrees = toDegrees(beta_delta_radians);
                     console.log("beta_delta_degrees:", beta_delta_degrees);
 
                     if(alpha_delta_degrees>0.0){
