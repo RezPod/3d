@@ -749,23 +749,33 @@
             //     //     canvasRight.changePerspectiveTo([canvasRight.alpha - alpha_delta_degrees, canvasRight.beta + beta_delta_degrees]);
             //     // }
             // }
-            
+            let initialAlpha = null;
+
             const handleOrientation = (e)=>{
-                console.log("e.beta:", e.beta);
-                console.log("e.gamma:", e.gamma);
+                // console.log("e.beta:", e.beta);
+                // console.log("e.alpha:", e.gamma);
                 document.getElementById("orientation").innerHTML=`
                 <br>
                 e.beta: ${e.beta}
                 <br>
                 e.gamma: ${e.gamma}
                 <br>
-                e.gamma: ${e.alpha}
+                e.alpha: ${e.alpha}
                 <br>
                 e.absolute: ${e.absolute}
                 `
-                if(e.beta && e.gamma){
-                    canvasLeft.changePerspectiveTo([canvasLeft.initAlpha - e.beta, canvasLeft.initBeta + (e.gamma + 90)]);
-                    canvasRight.changePerspectiveTo([canvasRight.initAlpha - e.beta, canvasRight.initBeta + (e.gamma + 90)]);
+                if(e.beta && e.alpha){
+                    if(initialAlpha==null){
+                        initialAlpha = e.alpha;
+                    }
+                    canvasLeft.changePerspectiveTo([
+                        canvasLeft.initAlpha - (e.alpha-initialAlpha), 
+                        canvasLeft.initBeta + ((e.gamma < 0) ? (e.gamma + 90) : (90-e.gamma)),
+                    ]);
+                    canvasRight.changePerspectiveTo([
+                        canvasRight.initAlpha - (e.alpha-initialAlpha), 
+                        canvasRight.initBeta + ((e.gamma < 0) ? (e.gamma + 90) : (90-e.gamma)),
+                    ]);
                 }
             }
             window.addEventListener("deviceorientation", handleOrientation, true);
