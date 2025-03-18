@@ -21,6 +21,8 @@
             <span id="canvas-alpha"></span>
             <span id="canvas-beta"></span>
         </div> -->
+        <div id="orientation">
+        </div>
         
         <script>
 
@@ -751,6 +753,16 @@
             const handleOrientation = (e)=>{
                 console.log("e.beta:", e.beta);
                 console.log("e.gamma:", e.gamma);
+                document.getElementById("orientation").innerHTML=`
+                <br>
+                e.beta: ${e.beta}
+                <br>
+                e.gamma: ${e.gamma}
+                <br>
+                e.gamma: ${e.alpha}
+                <br>
+                e.absolute: ${e.absolute}
+                `
                 if(e.beta && e.gamma){
                     canvasLeft.changePerspectiveTo([canvasLeft.initAlpha - e.beta, canvasLeft.initBeta + (e.gamma + 90)]);
                     canvasRight.changePerspectiveTo([canvasRight.initAlpha - e.beta, canvasRight.initBeta + (e.gamma + 90)]);
