@@ -684,7 +684,7 @@
             const gyro = new Gyroscope({ frequency: 20 });
             gyro.start();
 
-            // let prev_gyro=null, prev_timestamp=null;
+            let prev_gyro=null, prev_timestamp=null;
 
             gyro.onreading = ()=>{
                 let cur_gyro = {x:gyro.x, y:gyro.y, z:gyro.y};
