@@ -13,7 +13,7 @@
         <script src="https://unpkg.com/shapefile@0.6"></script>
     </head>
     <body>
-        <div id="container"></video>
+        <div id="container">
             <canvas class="canvas" id="canvasLeft" width="1200" height="750"></canvas>
             <canvas class="canvas" id="canvasRight" width="1200" height="750"></canvas>
         </div>
@@ -695,7 +695,7 @@
             let fullscreen = false;
             document.getElementById("container").ontouchend = ()=>{ 
                 if(fullscreen) {
-                    document.getElementById("container").exitFullscreen(); 
+                    // document.getElementById("container").exitFullscreen(); 
                     fullscreen = false;
                 } else {
                     document.getElementById("container").requestFullscreen();};
@@ -748,12 +748,15 @@
             //     // }
             // }
             
-            window.onorientationchange = (e)=>{
+            const handleOrientation = (e)=>{
                 console.log("e.beta:", e.beta);
                 console.log("e.gamma:", e.gamma);
-                canvasLeft.changePerspectiveTo([canvasLeft.initAlpha - e.beta, canvasLeft.initBeta + (e.gamma + 90)]);
-                canvasRight.changePerspectiveTo([canvasRight.initAlpha - e.beta, canvasRight.initBeta + (e.gamma + 90)]);
+                if(e.beta && e.gamma){
+                    canvasLeft.changePerspectiveTo([canvasLeft.initAlpha - e.beta, canvasLeft.initBeta + (e.gamma + 90)]);
+                    canvasRight.changePerspectiveTo([canvasRight.initAlpha - e.beta, canvasRight.initBeta + (e.gamma + 90)]);
+                }
             }
+            window.addEventListener("deviceorientation", handleOrientation, true);
         </script>
     </body>
 </html>
