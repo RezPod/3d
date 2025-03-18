@@ -626,7 +626,7 @@
             gyro.onreading = ()=>{
                 let cur_gyro = {x:gyro.x, y:gyro.y, z:gyro.y};
                 let cur_timestamp = gyro.timestamp;
-                let stability_factor = 10.0;
+                let stability_factor = 1.0;
 
                 if(prev_gyro!=null && prev_timestamp!=null){
                     const alpha_delta_radians = (
@@ -646,12 +646,12 @@
 
                     if(alpha_delta_degrees>0.0){
                         canvasLeft.changePerspectiveTo([canvasLeft.alpha - alpha_delta_degrees, canvasLeft.beta]);
-                        canvasRight.changePerspectiveTo([canvasLeft.alpha - alpha_delta_degrees, canvasLeft.beta]);
+                        canvasRight.changePerspectiveTo([canvasRight.alpha - alpha_delta_degrees, canvasRight.beta]);
                     }
 
                     if(beta_delta_degrees>0.0){
                         canvasLeft.changePerspectiveTo([canvasLeft.alpha , canvasLeft.beta + beta_delta_degrees]);
-                        canvasRight.changePerspectiveTo([canvasLeft.alpha , canvasLeft.beta + beta_delta_degrees]);
+                        canvasRight.changePerspectiveTo([canvasRight.alpha , canvasRight.beta + beta_delta_degrees]);
                     }
                 }
                 prev_gyro = {...cur_gyro};
