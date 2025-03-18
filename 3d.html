@@ -644,14 +644,9 @@
                     const beta_delta_degrees = toDegrees(beta_delta_radians);
                     console.log("beta_delta_degrees:", beta_delta_degrees);
 
-                    if(alpha_delta_degrees>0.0){
-                        canvasLeft.changePerspectiveTo([canvasLeft.alpha - alpha_delta_degrees, canvasLeft.beta]);
-                        canvasRight.changePerspectiveTo([canvasRight.alpha - alpha_delta_degrees, canvasRight.beta]);
-                    }
-
-                    if(beta_delta_degrees>0.0){
-                        canvasLeft.changePerspectiveTo([canvasLeft.alpha , canvasLeft.beta + beta_delta_degrees]);
-                        canvasRight.changePerspectiveTo([canvasRight.alpha , canvasRight.beta + beta_delta_degrees]);
+                    if(alpha_delta_degrees>0.0 || beta_delta_degrees>0.0){
+                        canvasLeft.changePerspectiveTo([canvasLeft.alpha - alpha_delta_degrees, canvasLeft.beta + beta_delta_degrees]);
+                        canvasRight.changePerspectiveTo([canvasRight.alpha - alpha_delta_degrees, canvasRight.beta + beta_delta_degrees]);
                     }
                 }
                 prev_gyro = {...cur_gyro};
