@@ -120,11 +120,13 @@
                     this.origin_x = origin_x ? origin_x : this.canvasElement.width  / 2;
                     this.origin_y = origin_y ? origin_y : this.canvasElement.height / 2;
 
-                    this.alpha = perspective ? perspective[0]%360 : 45;
-                    this.beta  = perspective ? perspective[1]%360 : 45;
+                    this.alpha = perspective ? perspective[0]%360 : 360 * Math.asin(1/(2**0.5))/(2*Math.PI);
+                    this.beta  = perspective ? perspective[1]%360 : 360 * Math.asin(1/(3**0.5))/(2*Math.PI);
+                    this.cameraPosition = [600, 600, 600];
+
                     this.displayPerspective(this.alpha, this.beta);
 
-                    this.perspective = perspective ?  Project3D.unitVector(Canvas3D.getPerspective(...perspective)) : new Array(3).fill(1/(3**0.5));
+                    this.perspective = Project3D.unitVector(Canvas3D.getPerspective(this.alpha, this.beta));
                     this.project3D = new Project3D(this.perspective);
                     this.shapes = {
                         lines:[],
@@ -421,6 +423,55 @@
                     this.perspective = Canvas3D.getPerspective(this.alpha, this.beta);
                     this.project3D = new Project3D(this.perspective);
 
+                    // console.log(
+                    //     Project3D.addVectors(
+                    //         this.cameraPosition,
+                    //         Project3D.scalerProd(
+                    //             Project3D.getMagnitude(this.cameraPosition), 
+                    //             Project3D.scalerProd(-1, this.perspective)
+                    //         )
+                    //     )
+                    // )
+
+                    let a =  Project3D.scalerProd(-1, this.perspective)
+                    a = Project3D.scalerProd(
+                            Project3D.getMagnitude(this.cameraPosition), 
+                            a
+                        )
+                    a =  Project3D.addVectors(
+                        this.cameraPosition,
+                        a
+                    )
+
+                    a = Project3D.scalerProd(
+                        -1,
+                        a
+                    )
+
+                    a = this.project3D.get(...a);
+
+                    a = this.toCoords(...a)
+                    // console.log(a);
+
+                    [this.origin_x, this.origin_y] = a;
+                    
+
+
+                    // [this.origin_x, this.origin_y] = this.toCoords(
+                    //         this.project3D.get(...Project3D.scalerProd(
+                    //             -1, 
+                    //             Project3D.addVectors(
+                    //                 this.cameraPosition,
+                    //                 Project3D.scalerProd(
+                    //                     Project3D.getMagnitude(this.cameraPosition), 
+                    //                     Project3D.scalerProd(-1, this.perspective)
+                    //                 )
+                    //             )
+                    //         )
+                    //     )
+                    // )
+
+
                     const lines = [...this.shapes.lines];
                     this.shapes.lines = [];
 
@@ -602,7 +653,7 @@
             drawTable(canvasLeft);
             drawTable(canvasRight);
 
-            const deltaAngle = 360*Math.atan(3.5/60)/(2*Math.PI);
+            const deltaAngle = 360*Math.atan(3.5/360)/(2*Math.PI);
             console.log(deltaAngle);
             canvasLeft.changePerspectiveTo([canvasLeft.alpha + deltaAngle, canvasLeft.beta]);
             canvasRight.changePerspectiveTo([canvasRight.alpha - deltaAngle, canvasRight.beta]);
@@ -619,7 +670,7 @@
             document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
 
             const toDegrees = (rad)=> 360 * rad / (2 * Math.PI)
-            const gyro = new Gyroscope({ frequency: 16 });
+            const gyro = new Gyroscope({ frequency: 20 });
             gyro.start();
             let prev_gyro=null, prev_timestamp=null;
 
