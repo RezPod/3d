@@ -769,16 +769,29 @@
                         initialAlpha = e.alpha;
                     }
 
+                    
+                    const betaDelta  = ((e.gamma < 0) ? (e.gamma + 90) : -(90-e.gamma));
+                    const alphaDelta = -(
+                        (
+                            (e.gamma < 0) 
+                            ? e.alpha 
+                            : (e.alpha + (initialAlpha<=180 ? -180 : 180 ))
+                        ) 
+                        - initialAlpha
+                    )
+
                     document.getElementById("orientation").innerHTML += `
-                    canvasLeft.beta : ${canvasLeft.initBeta + ((e.gamma < 0) ? (e.gamma + 90) : -(90-e.gamma))}
-                    `
+                        canvasLeft.alpha : ${canvasLeft.initAlpha + alphaDelta}
+                        canvasLeft.beta : ${canvasLeft.initBeta  + betaDelta}
+                        `
+
                     canvasLeft.changePerspectiveTo([
-                        canvasLeft.initAlpha - (e.alpha-initialAlpha), 
-                        canvasLeft.initBeta + ((e.gamma < 0) ? (e.gamma + 90) : -(90-e.gamma)),
+                        canvasLeft.initAlpha + alphaDelta, 
+                        canvasLeft.initBeta  + betaDelta,
                     ]);
                     canvasRight.changePerspectiveTo([
-                        canvasRight.initAlpha - (e.alpha-initialAlpha), 
-                        canvasRight.initBeta + ((e.gamma < 0) ? (e.gamma + 90) : -(90-e.gamma)),
+                        canvasRight.initAlpha + alphaDelta , 
+                        canvasRight.initBeta  + betaDelta,
                     ]);
                 }
             }
