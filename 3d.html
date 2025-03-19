@@ -475,6 +475,7 @@
                     // console.log(this.origin_x, this.origin_y);
 
                     this.currenFocusPoint = newFocusPoint;
+                    
                     // [this.origin_x, this.origin_y] = this.toCoords(
                     //         this.project3D.get(...Project3D.scalerProd(
                     //             -1, 
@@ -548,6 +549,7 @@
                 ],
                 [400-4, 400+3, 300]
             );
+            canvasLeft.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "yellow", true)
 
             const canvasRight = new Canvas3D(
                 id="canvasRight", 
@@ -557,6 +559,7 @@
                 ],
                 [400+4, 400-3, 300]
             );
+            canvasRight.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "yellow", true)
 
             // const canvasRight = new Canvas3D(id="canvasRight");
             // canvasLeft.drawLine(0, 0, 0, 360, 0, 0);
@@ -706,49 +709,6 @@
             document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
 
             const toDegrees = (rad)=> 360 * rad / (2 * Math.PI)
-            // const gyro = new Gyroscope({ frequency: 60 });
-            // gyro.start();
-
-            // let prev_gyro=null, prev_timestamp=null;
-
-            // gyro.onreading = ()=>{
-            //     let cur_gyro = {x:gyro.x, y:gyro.y, z:gyro.y};
-            //     let cur_timestamp = gyro.timestamp;
-            //     let stability_factor = 1.0;
-
-            //     if(prev_gyro!=null && prev_timestamp!=null){
-            //         const alpha_delta_radians = (
-            //             ((prev_gyro.x + cur_gyro.x)/2)
-            //             *((cur_timestamp - prev_timestamp)/1000)
-            //         )/stability_factor;
-
-            //         const alpha_delta_degrees = toDegrees(alpha_delta_radians);
-            //         // console.log("alpha_delta_degrees:", alpha_delta_degrees);
-
-            //         const beta_delta_radians = (
-            //             ((prev_gyro.y + cur_gyro.y)/2)
-            //             *((cur_timestamp - prev_timestamp)/1000)
-            //         )/stability_factor;
-            //         const beta_delta_degrees = toDegrees(beta_delta_radians);
-            //         // console.log("beta_delta_degrees:", beta_delta_degrees);
-
-
-            //         if(alpha_delta_degrees>0.0 || beta_delta_degrees>0.0){
-            //             canvasLeft.changePerspectiveTo([canvasLeft.alpha - alpha_delta_degrees, canvasLeft.beta + beta_delta_degrees]);
-            //             canvasRight.changePerspectiveTo([canvasRight.alpha - alpha_delta_degrees, canvasRight.beta + beta_delta_degrees]);
-            //         }
-            //     }
-            //     prev_gyro = {...cur_gyro};
-            //     prev_timestamp = cur_timestamp;
-
-            //     // const alpha_delta_degrees = toDegrees(gyro.x*1/20);
-            //     // const beta_delta_degrees = toDegrees(gyro.y*1/20);
-
-            //     // if(alpha_delta_degrees>0.0 || beta_delta_degrees>0.0){
-            //     //     canvasLeft.changePerspectiveTo([canvasLeft.alpha - alpha_delta_degrees, canvasLeft.beta + beta_delta_degrees]);
-            //     //     canvasRight.changePerspectiveTo([canvasRight.alpha - alpha_delta_degrees, canvasRight.beta + beta_delta_degrees]);
-            //     // }
-            // }
             let initialAlpha = null;
 
             const handleOrientation = (e)=>{
@@ -770,7 +730,7 @@
                     }
 
                     
-                    const betaDelta  = ((e.gamma < 0) ? (e.gamma + 90) : -(90-e.gamma));
+                    const betaDelta  = ((e.gamma < 0) ? (e.gamma + 90 - canvasLeft.initBeta) : -(90-e.gamma) - canvasLeft.initBeta);
                     const alphaDelta = -(
                         (
                             (e.gamma < 0) 
