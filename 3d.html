@@ -780,7 +780,7 @@
                         - initialAlpha
                     )
 
-                    if(alphaDelta>=5 || betaDelta>=5){
+                    if(true){//alphaDelta>=5 || betaDelta>=5){
                         canvasLeft.changePerspectiveTo([
                             canvasLeft.initAlpha + alphaDelta, 
                             canvasLeft.initBeta  + betaDelta,
@@ -797,7 +797,7 @@
                             <br>
                             canvasLeft.beta : ${canvasLeft.beta }
                             <br>
-                            canvasLeft.currenFocusPoint: ${canvasLeft.currenFocusPoint }
+                            canvasLeft.currenFocusPoint: ${canvasLeft.currenFocusPoint.map(v=>v.toFixed(2)) }
                             <br>
                             canvasLeft.origin: ${canvasLeft.origin_x},${canvasLeft.origin_y} 
                         `
