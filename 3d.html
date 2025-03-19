@@ -17,12 +17,19 @@
             <canvas class="canvas" id="canvasLeft" width="1200" height="750"></canvas>
             <canvas class="canvas" id="canvasRight" width="1200" height="750"></canvas>
         </div>
-        <!-- <div>
+        <div id="canvasLeft-perspective">
+            Left
+            <span id="canvas-alpha"></span>
+            <span id="canvas-beta"></span>
+        </div>
+
+        <!-- <div id="canvasLeft-perspective">
+            Right
             <span id="canvas-alpha"></span>
             <span id="canvas-beta"></span>
         </div> -->
-        <div id="orientation">
-        </div>
+
+        <div id="orientation"></div>
         
         <script>
 
@@ -99,7 +106,7 @@
                     return Project3D.getMagnitude(Project3D.parallelProjection(this.normal, [x, y, z]));
                 }
 
-                getDrawingOrder(polygons){
+                static getDrawingOrder(polygons, perspective){
                     return polygons.sort((a, b)=>{
                         let center_join = Project3D.addVectors(
                             Project3D.scalerProd(
@@ -110,9 +117,76 @@
                                 b.coords.reduce((i, c)=> Project3D.addVectors(i, c), [0, 0, 0])
                             )
                         )
-                        return Project3D.dotProduct(this.normal, center_join);
-                    })
+                        // console.log("a: ", a);
+                        // console.log("b: ", b)
+                        // console.log("center_join:", center_join);
+                        // console.log("this.normal:", this.normal);
+
+                        const result  = Project3D.dotProduct(perspective, center_join)
+                        // console.log("result: ", result);
+                        // console.log(null);
+                        return result;
+                    });
                 }
+
+                    // pointOnPlane = Project3D.scalerProd(-1, pointOnPlane);
+
+                    // return polygons.sort((a, b)=>{
+                    //     const aMax = Math.max(
+                    //         ...a.coords.map(
+                    //             c=>Project3D.getMagnitude(
+                    //                 Project3D.parallelProjection(
+                    //                     normaltoPlane, 
+                    //                     Project3D.addVectors(
+                    //                         c,
+                    //                         pointOnPlane
+                    //                     )
+                    //                 )
+                    //             )
+                    //         )
+                    //     )
+
+                    //     const bMax = Math.max(
+                    //         ...b.coords.map(
+                    //             c=>Project3D.getMagnitude(
+                    //                 Project3D.parallelProjection(
+                    //                     normaltoPlane, 
+                    //                     Project3D.addVectors(
+                    //                         c,
+                    //                         pointOnPlane
+                    //                     )
+                    //                 )
+                    //             )
+                    //         )
+                    //     )
+                    //     return aMax - bMax;
+                    // })
+
+                    // pointOnPlane = Project3D.scalerProd(-1, pointOnPlane);
+
+                //     const ref =(p) =>  Project3D.addVectors(p, Project3D.scalerProd(-1, curentfocusPoint));
+
+                //     return polygons.sort((a, b)=>{
+                        
+                //         const r0 = Project3D.scalerProd(-1,  ref(a.coords[0]));
+                //         const n = Project3D.unitVector(Project3D.vectorProd(
+                //             Project3D.addVectors(ref(a.coords[1]), r0),
+                //             Project3D.addVectors(ref(a.coords[2]), r0)
+                //         ));
+
+                //         const k = Project3D.dotProduct(n, Project3D.addVectors(ref(cameraPosition), r0));
+
+                //         for(let c of b.coords){
+                //             // const projectinOnRefPlane = Project3D.perpendicularProjection(normaltoPlane, c);
+                //             const v = Project3D.dotProduct(n, Project3D.addVectors(ref(c), r0));
+                //             // const c2 = Project3D.dotProduct(n, Project3D.addVectors(projectinOnRefPlane, r0));
+                //             if(k * v < 0){
+                //                 return +1;
+                //             }
+                //         }
+                //         return -1;
+                //     })
+                // }
             }
 
             class Canvas3D{
@@ -273,6 +347,7 @@
                         coords.push(p); 
                     }
                     this.drawPolygon(coords, fillColor, drawBorders); 
+                    this.refresh();
                 }
 
                 drawPie(center, normal, radius, height, theta_start, theta_end, fillColor){
@@ -320,6 +395,7 @@
 
                     this.drawPolygon(coords, fillColor, true); 
                     this.drawPolygon(coords.map(c=>Project3D.addVectors(c, Project3D.scalerProd(height, normal_vector))), fillColor, true); 
+                    this.refresh();
                 }
 
                 drawCone(center, normal, radius1, radius2, height, fillColor, edges){
@@ -366,6 +442,8 @@
                     }
                     this.drawPolygon(coords1, fillColor, edges);
                     this.drawPolygon(coords2, fillColor, edges);
+
+                    this.refresh();
                 }
 
                 drawSphere(center, radius, color){
@@ -381,6 +459,7 @@
                         }
                         r1 = r2;
                     }
+                    this.refresh();
                 }
 
                 drawBlock(basePolygonCoords, height, color, edges){
@@ -416,6 +495,8 @@
 
                     this.drawPolygon(basePolygonCoords, color, edges);
                     this.drawPolygon(topPolygonCoords, color, edges);
+
+                    this.refresh();
                 }
 
                 changePerspectiveTo(perspective){
@@ -427,20 +508,9 @@
                     this.alpha = this.alpha%360;
                     if(this.alpha < 0) this.alpha = 360 + this.alpha;
 
-                    this.perspective = Canvas3D.getPerspective(this.alpha, this.beta);
-                    this.project3D = new Project3D(this.perspective);
+                    perspective = Canvas3D.getPerspective(this.alpha, this.beta);
 
-                    // console.log(
-                    //     Project3D.addVectors(
-                    //         this.cameraPosition,
-                    //         Project3D.scalerProd(
-                    //             Project3D.getMagnitude(this.cameraPosition), 
-                    //             Project3D.scalerProd(-1, this.perspective)
-                    //         )
-                    //     )
-                    // )
-
-                    let a =  Project3D.scalerProd(-1, this.perspective)
+                    let a =  Project3D.scalerProd(-1, perspective)
                     a = Project3D.scalerProd(
                             Project3D.getMagnitude(this.cameraPosition), 
                             a
@@ -459,7 +529,6 @@
                             a
                         )
                     )
-                   
 
                     a = this.project3D.get(...a);
                     
@@ -469,12 +538,12 @@
                     // console.log(a);
 
                     this.origin_x = a[0];
-                    this.origin_y = a[1]; 
-                    // [this.origin_x, this.origin_y] = a;
+                    this.origin_y = a[1];
 
                     // console.log(this.origin_x, this.origin_y);
 
                     this.currenFocusPoint = newFocusPoint;
+                    
                     
                     // [this.origin_x, this.origin_y] = this.toCoords(
                     //         this.project3D.get(...Project3D.scalerProd(
@@ -489,8 +558,14 @@
                     //         )
                     //     )
                     // )
+                    this.perspective = perspective;
+                    this.project3D = new Project3D(this.perspective);
+                    this.displayPerspective(this.alpha, this.beta);
 
+                    this.refresh();
+                }
 
+                refresh(){
                     const lines = [...this.shapes.lines];
                     this.shapes.lines = [];
 
@@ -499,9 +574,11 @@
 
                     this.ctx.reset();
                     lines.forEach(v => this.drawLine(...v));
-                    this.project3D.getDrawingOrder(polygons).forEach(p => this.drawPolygon(p.coords, p.fillColor, p.drawBorders));
-
-                    this.displayPerspective(this.alpha, this.beta)
+                    Project3D.getDrawingOrder(
+                        polygons, 
+                        this.cameraPosition, 
+                        this.currenFocusPoint
+                    ).forEach(p => this.drawPolygon(p.coords, p.fillColor, p.drawBorders));
                 }
 
                 onMouseDown = (e)=>{
@@ -517,6 +594,8 @@
                             (this.beta  + 10 * (e.clientY - this.initY)/e.target.height)%360
                         ];
                         this.changePerspectiveTo(newPerspective);
+                        // this.drawArc( Project3D.scalerProd(-1, this.currenFocusPoint), [0, 0, 1], 20, 0, 360, 'gold', false);
+                        // this.drawArc(this.currenFocusPoint, this.perspective, 20, 0, 360, 'gold', true);
                     }
                 }
 
@@ -549,7 +628,7 @@
                 ],
                 [400-4, 400+3, 300]
             );
-            canvasLeft.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "yellow", true)
+            // canvasLeft.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
 
             const canvasRight = new Canvas3D(
                 id="canvasRight", 
@@ -559,65 +638,7 @@
                 ],
                 [400+4, 400-3, 300]
             );
-            canvasRight.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "yellow", true)
-
-            // const canvasRight = new Canvas3D(id="canvasRight");
-            // canvasLeft.drawLine(0, 0, 0, 360, 0, 0);
-            // canvasLeft.drawLine(0, 0, 0, 0, 360, 0);
-            // canvasLeft.drawLine(0, 0, 0, 0, 0, 360);
-
-            // canvasRight.drawLine(0, 0, 0, 360, 0, 0);
-            // canvasRight.drawLine(0, 0, 0, 0, 360, 0);
-            // canvasRight.drawLine(0, 0, 0, 0, 0, 360);
-
-            // canvas.drawSphere([1, 1, 1], 350, "blue");
-
-            // async function drawMap(){
-            //     const source = await shapefile.open("country_shapes/country_shapes.shp");
-                
-            //     let result = await source.read();
-            //     // console.log(result);
-            //     let countries = []
-            //     while(result.done==false){
-            //         console.log(result);
-            //         console.log(result.value.properties.cntry_name);
-            //         countries.push(result.value);
-                    
-            //         const coords =  result.value.geometry.coordinates;
-            //         console.log("coords.type: ", result.value.geometry.type)
-            //         if(result.value.geometry.type==="MultiPolygon"){
-            //             for(let p of coords){
-            //                 canvas.drawPolygon(
-            //                     p[0].map(c=> Project3D.polarToVectorCoords(450, -c[0], c[1])),
-            //                     "yellow", 
-            //                     true
-            //                 )
-            //             }
-            //         } else {
-            //             canvas.drawPolygon(
-            //                 coords[0].map(c=> Project3D.polarToVectorCoords(450, -c[0], c[1])),
-            //                 "yellow", 
-            //                 true
-            //             )
-            //         }
-                    
-            //         result = await source.read();
-            //     }
-            //     console.log(countries);
-            //     console.log(countries.length);
-            //     // do{
-            //     //     result = await source.read();
-            //     //     // console.log(result.value);
-            //     //     // console.log(result.value.properties);
-
-            //     //     if(result.done){
-            //     //         break;
-            //     //     }
-
-            //     // }while( result.done == false);
-            // }
-            // // drawMap();
-            
+            // canvasRight.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
 
             function drawTable(canvas){
                 const height = 150;
@@ -681,32 +702,59 @@
                     [0, 0, 0]
                 ]
 
-                for(let i=-20; i<20; i++){
-                    for (let j=-20; j<20; j++){
-                        canvas.drawPolygon(tile.map(t=>Project3D.addVectors([40*i, 40*j, 0], t)), 'white', true)
-                    }
-                }
+                // for(let i=-20; i<20; i++){
+                //     for (let j=-20; j<20; j++){
+                //         canvas.drawPolygon(tile.map(t=>Project3D.addVectors([40*i, 40*j, 0], t)), 'white', false)
+                //     }
+                // }
 
-                canvas.drawCone([100, 100, height+top_thickness], [0, 0, 1], 40, 40, 40, "green", true);
+                canvas.drawCone([lenght-20, width-20, height + 2 * top_thickness], [0, 0, 1], 40, 40, 40, "green", true);
                 return;
             }
 
             drawTable(canvasLeft);
             drawTable(canvasRight);
+            // canvasLeft.drawLine(0, 0, 0, 400, 0, 0)
+            // canvasLeft.drawLine(0, 0, 0, 0, 400, 0)
+            // canvasLeft.drawLine(0, 0, 0, 0, 0, 400)
+            // canvasLeft.drawBlock([
+            //     [0, 0, 20],
+            //     [100, 0, 20],
+            //     [100, 100, 20],
+            //     [0, 100, 20],
+            //     [0, 0, 20]
+            // ], 30, 'gold', true)
 
-            // canvasLeft.changePerspectiveTo([canvasLeft.alpha + deltaAngle, canvasLeft.beta]);
-            // canvasRight.changePerspectiveTo([canvasRight.alpha - deltaAngle, canvasRight.beta]);
+            // canvasRight.drawLine(0, 0, 0, 400, 0, 0)
+            // canvasRight.drawLine(0, 0, 0, 0, 400, 0)
+            // canvasRight.drawLine(0, 0, 0, 0, 0, 400)
+            // canvasRight.drawBlock([
+            //     [0, 0, 20],
+            //     [100, 0, 20],
+            //     [100, 100, 20],
+            //     [0, 100, 20],
+            //     [0, 0, 20]
+            // ], 30, 'gold', true)
 
-            let fullscreen = false;
-            document.getElementById("container").ontouchend = ()=>{ 
-                if(fullscreen) {
-                    // document.getElementById("container").exitFullscreen(); 
-                    fullscreen = false;
-                } else {
-                    document.getElementById("container").requestFullscreen();};
-                    fullscreen = true;
-                }
-            document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
+            // canvasLeft.drawBlock([
+            //     [0, 0, 0],
+            //     [10, 0, 0],
+            //     [10, 10, 0],
+            //     [0, 10, 0],
+            //     [0, 0, 0]
+            // ], 10, 'gold', true)
+
+
+            // let fullscreen = false;
+            // document.getElementById("container").ontouchend = ()=>{ 
+            //     if(fullscreen) {
+            //         // document.getElementById("container").exitFullscreen(); 
+            //         fullscreen = false;
+            //     } else {
+            //         document.getElementById("container").requestFullscreen();};
+            //         fullscreen = true;
+            //     }
+            // document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
 
             const toDegrees = (rad)=> 360 * rad / (2 * Math.PI)
             let initialAlpha = null;
