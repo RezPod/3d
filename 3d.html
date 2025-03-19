@@ -10,7 +10,7 @@
                 padding: 0%;
             }
         </style>
-        <script src="https://unpkg.com/shapefile@0.6"></script>
+        <!-- <script src="https://unpkg.com/shapefile@0.6"></script> -->
     </head>
     <body>
         <div id="container">
@@ -572,51 +572,51 @@
 
             // canvas.drawSphere([1, 1, 1], 350, "blue");
 
-            async function drawMap(){
-                const source = await shapefile.open("country_shapes/country_shapes.shp");
+            // async function drawMap(){
+            //     const source = await shapefile.open("country_shapes/country_shapes.shp");
                 
-                let result = await source.read();
-                // console.log(result);
-                let countries = []
-                while(result.done==false){
-                    console.log(result);
-                    console.log(result.value.properties.cntry_name);
-                    countries.push(result.value);
+            //     let result = await source.read();
+            //     // console.log(result);
+            //     let countries = []
+            //     while(result.done==false){
+            //         console.log(result);
+            //         console.log(result.value.properties.cntry_name);
+            //         countries.push(result.value);
                     
-                    const coords =  result.value.geometry.coordinates;
-                    console.log("coords.type: ", result.value.geometry.type)
-                    if(result.value.geometry.type==="MultiPolygon"){
-                        for(let p of coords){
-                            canvas.drawPolygon(
-                                p[0].map(c=> Project3D.polarToVectorCoords(450, -c[0], c[1])),
-                                "yellow", 
-                                true
-                            )
-                        }
-                    } else {
-                        canvas.drawPolygon(
-                            coords[0].map(c=> Project3D.polarToVectorCoords(450, -c[0], c[1])),
-                            "yellow", 
-                            true
-                        )
-                    }
+            //         const coords =  result.value.geometry.coordinates;
+            //         console.log("coords.type: ", result.value.geometry.type)
+            //         if(result.value.geometry.type==="MultiPolygon"){
+            //             for(let p of coords){
+            //                 canvas.drawPolygon(
+            //                     p[0].map(c=> Project3D.polarToVectorCoords(450, -c[0], c[1])),
+            //                     "yellow", 
+            //                     true
+            //                 )
+            //             }
+            //         } else {
+            //             canvas.drawPolygon(
+            //                 coords[0].map(c=> Project3D.polarToVectorCoords(450, -c[0], c[1])),
+            //                 "yellow", 
+            //                 true
+            //             )
+            //         }
                     
-                    result = await source.read();
-                }
-                console.log(countries);
-                console.log(countries.length);
-                // do{
-                //     result = await source.read();
-                //     // console.log(result.value);
-                //     // console.log(result.value.properties);
+            //         result = await source.read();
+            //     }
+            //     console.log(countries);
+            //     console.log(countries.length);
+            //     // do{
+            //     //     result = await source.read();
+            //     //     // console.log(result.value);
+            //     //     // console.log(result.value.properties);
 
-                //     if(result.done){
-                //         break;
-                //     }
+            //     //     if(result.done){
+            //     //         break;
+            //     //     }
 
-                // }while( result.done == false);
-            }
-            // drawMap();
+            //     // }while( result.done == false);
+            // }
+            // // drawMap();
             
 
             function drawTable(canvas){
