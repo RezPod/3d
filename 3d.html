@@ -425,7 +425,7 @@
                     else if (this.beta < -90) this.beta = -90;
 
                     this.alpha = this.alpha%360;
-                    if(this.alpha < 0) this.alpha = 360 - this.alpha;
+                    if(this.alpha < 0) this.alpha = 360 + this.alpha;
 
                     this.perspective = Canvas3D.getPerspective(this.alpha, this.beta);
                     this.project3D = new Project3D(this.perspective);
@@ -780,19 +780,28 @@
                         - initialAlpha
                     )
 
-                    document.getElementById("orientation").innerHTML += `
-                        canvasLeft.alpha : ${canvasLeft.initAlpha + alphaDelta}
-                        canvasLeft.beta : ${canvasLeft.initBeta  + betaDelta}
-                        `
+                    if(alphaDelta>=5 || betaDelta>=5){
+                        canvasLeft.changePerspectiveTo([
+                            canvasLeft.initAlpha + alphaDelta, 
+                            canvasLeft.initBeta  + betaDelta,
+                        ]);
 
-                    canvasLeft.changePerspectiveTo([
-                        canvasLeft.initAlpha + alphaDelta, 
-                        canvasLeft.initBeta  + betaDelta,
-                    ]);
-                    canvasRight.changePerspectiveTo([
-                        canvasRight.initAlpha + alphaDelta , 
-                        canvasRight.initBeta  + betaDelta,
-                    ]);
+                        canvasRight.changePerspectiveTo([
+                            canvasRight.initAlpha + alphaDelta , 
+                            canvasRight.initBeta  + betaDelta,
+                        ]);
+
+                        document.getElementById("orientation").innerHTML += `
+                            <br>
+                            canvasLeft.alpha : ${canvasLeft.alpha }
+                            <br>
+                            canvasLeft.beta : ${canvasLeft.beta }
+                            <br>
+                            canvasLeft.currenFocusPoint: ${canvasLeft.currenFocusPoint }
+                            <br>
+                            canvasLeft.origin: ${canvasLeft.origin_x},${canvasLeft.origin_y} 
+                        `
+                    }                    
                 }
             }
             window.addEventListener("deviceorientation", handleOrientation, true);
