@@ -745,16 +745,16 @@
             // ], 10, 'gold', true)
 
 
-            // let fullscreen = false;
-            // document.getElementById("container").ontouchend = ()=>{ 
-            //     if(fullscreen) {
-            //         // document.getElementById("container").exitFullscreen(); 
-            //         fullscreen = false;
-            //     } else {
-            //         document.getElementById("container").requestFullscreen();};
-            //         fullscreen = true;
-            //     }
-            // document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
+            let fullscreen = false;
+            document.getElementById("container").ontouchend = ()=>{ 
+                if(fullscreen) {
+                    // document.getElementById("container").exitFullscreen(); 
+                    fullscreen = false;
+                } else {
+                    document.getElementById("container").requestFullscreen();};
+                    fullscreen = true;
+                }
+            document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
 
             const toDegrees = (rad)=> 360 * rad / (2 * Math.PI)
             let initialAlpha = null;
