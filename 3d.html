@@ -674,22 +674,22 @@
                 handleOrientationChange(e){
                     // console.log("e.beta:", e.beta);
                     // console.log("e.alpha:", e.gamma);
-                    document.getElementById("orientation").innerHTML=`
-                    <br>
-                    e.beta: ${e.beta.toFixed(2)}
-                    <br>
-                    e.gamma: ${e.gamma.toFixed(2)}
-                    <br>
-                    e.alpha: ${e.alpha.toFixed(2)}
-                    <br>
-                    e.absolute: ${e.absolute}
-                    `
+                    // this.statusElement.innerHTML=`
+                    // <br>
+                    // e.beta: ${e.beta.toFixed(2)}
+                    // <br>
+                    // e.gamma: ${e.gamma.toFixed(2)}
+                    // <br>
+                    // e.alpha: ${e.alpha.toFixed(2)}
+                    // <br>
+                    // e.absolute: ${e.absolute}
+                    // `
                     if(e.beta && e.alpha){
                         if(this.initialOrientationAlpha==null){
                             this.initialOrientationAlpha = e.alpha;
                         }
 
-                        const betaDelta  = ((e.gamma < 0) ? (e.gamma + 90 - canvasLeft.initBeta) : -(90-e.gamma) - canvasLeft.initBeta);
+                        const betaDelta  = ((e.gamma < 0) ? (e.gamma + 90 - this.initBeta) : -(90-e.gamma) - this.initBeta);
                         const alphaDelta = -(
                             (
                                 (e.gamma < 0) 
@@ -703,21 +703,16 @@
                             this.initBeta  + betaDelta,
                         ]);
 
-                        canvasRight.changePerspectiveTo([
-                            canvasRight.initAlpha + alphaDelta , 
-                            canvasRight.initBeta  + betaDelta,
-                        ]);
-
-                        document.getElementById("orientation").innerHTML += `
-                            <br>
-                            canvasLeft.alpha : ${this.alpha.toFixed(2) }
-                            <br>
-                            canvasLeft.beta : ${this.beta.toFixed(2) }
-                            <br>
-                            canvasLeft.currenFocusPoint: ${this.currenFocusPoint.map(v=>v.toFixed(2)) }
-                            <br>
-                            canvasLeft.origin: ${this.origin_x.toFixed()},${this.origin_y.toFixed()} 
-                        `             
+                        // document.getElementById("orientation").innerHTML += `
+                        //     <br>
+                        //     canvasLeft.alpha : ${this.alpha.toFixed(2) }
+                        //     <br>
+                        //     canvasLeft.beta : ${this.beta.toFixed(2) }
+                        //     <br>
+                        //     canvasLeft.currenFocusPoint: ${this.currenFocusPoint.map(v=>v.toFixed(2)) }
+                        //     <br>
+                        //     canvasLeft.origin: ${this.origin_x.toFixed()},${this.origin_y.toFixed()} 
+                        // `             
                     }
                 }
             }
