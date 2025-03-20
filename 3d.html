@@ -17,17 +17,18 @@
             <canvas class="canvas" id="canvasLeft" width="1200" height="750"></canvas>
             <canvas class="canvas" id="canvasRight" width="1200" height="750"></canvas>
         </div>
+
         <div id="canvasLeft-perspective">
             Left
             <span id="canvas-alpha"></span>
             <span id="canvas-beta"></span>
         </div>
 
-        <!-- <div id="canvasLeft-perspective">
+        <div id="canvasRight-perspective">
             Right
             <span id="canvas-alpha"></span>
             <span id="canvas-beta"></span>
-        </div> -->
+        </div>
 
         <div id="orientation"></div>
         
@@ -191,6 +192,7 @@
 
             class Canvas3D{
                 constructor(id, perspective, cameraPosition){
+                    this.id = id;
                     this.canvasElement = document.getElementById(id);
                     this.ctx = this.canvasElement.getContext("2d");
                     this.origin_x = this.canvasElement.width  / 2;
@@ -215,13 +217,13 @@
                     };
                     // this.showPerspectiveIndicator();
                     this.enablePerspectiveChange();
+                    this.changePerspectiveTo([this.alpha, this.beta])
                 }
 
                 displayPerspective(alpha, beta){
-                    if(document.getElementById("canvas-alpha"))
-                        document.getElementById("canvas-alpha").textContent = Math.round(alpha);
-                    if(document.getElementById("canvas-beta"))
-                        document.getElementById("canvas-beta").textContent = Math.round(beta);
+                    const contanier = document.getElementById(`${this.id}-perspective`);
+                    contanier.querySelector("#canvas-alpha").textContent = Math.round(alpha);
+                    contanier.querySelector("#canvas-beta").textContent = Math.round(beta);
                 }
 
                 static getPerspective(alpha, beta){
@@ -646,7 +648,7 @@
                 const width = 150;
                 const pillar_width = 5;
                 const pillar_corner_offset = 10;
-                const top_thickness = 5;
+                const top_thickness = 10;
 
                 const table_top=[
                     [0, 0, height],
@@ -712,29 +714,30 @@
                 return;
             }
 
-            drawTable(canvasLeft);
-            drawTable(canvasRight);
+            // drawTable(canvasLeft);
+            // drawTable(canvasRight);
+
             // canvasLeft.drawLine(0, 0, 0, 400, 0, 0)
             // canvasLeft.drawLine(0, 0, 0, 0, 400, 0)
             // canvasLeft.drawLine(0, 0, 0, 0, 0, 400)
-            // canvasLeft.drawBlock([
-            //     [0, 0, 20],
-            //     [100, 0, 20],
-            //     [100, 100, 20],
-            //     [0, 100, 20],
-            //     [0, 0, 20]
-            // ], 30, 'gold', true)
+            canvasLeft.drawBlock([
+                [0, 0, 20],
+                [100, 0, 20],
+                [100, 100, 20],
+                [0, 100, 20],
+                [0, 0, 20]
+            ], 30, 'gold', true)
 
             // canvasRight.drawLine(0, 0, 0, 400, 0, 0)
             // canvasRight.drawLine(0, 0, 0, 0, 400, 0)
             // canvasRight.drawLine(0, 0, 0, 0, 0, 400)
-            // canvasRight.drawBlock([
-            //     [0, 0, 20],
-            //     [100, 0, 20],
-            //     [100, 100, 20],
-            //     [0, 100, 20],
-            //     [0, 0, 20]
-            // ], 30, 'gold', true)
+            canvasRight.drawBlock([
+                [0, 0, 20],
+                [100, 0, 20],
+                [100, 100, 20],
+                [0, 100, 20],
+                [0, 0, 20]
+            ], 30, 'gold', true)
 
             // canvasLeft.drawBlock([
             //     [0, 0, 0],
@@ -744,17 +747,21 @@
             //     [0, 0, 0]
             // ], 10, 'gold', true)
 
+            function enableFullScreenMode(){
+                let fullscreen = false;
+                document.getElementById("container").ontouchend = ()=>{ 
+                    if(fullscreen) {
+                        // document.getElementById("container").exitFullscreen(); 
+                        fullscreen = false;
+                    } else {
+                        document.getElementById("container").requestFullscreen();
+                        fullscreen = true;
+                    }
 
-            let fullscreen = false;
-            document.getElementById("container").ontouchend = ()=>{ 
-                if(fullscreen) {
-                    // document.getElementById("container").exitFullscreen(); 
-                    fullscreen = false;
-                } else {
-                    document.getElementById("container").requestFullscreen();};
-                    fullscreen = true;
+                    document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
                 }
-            document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
+            }
+            enableFullScreenMode();
 
             const toDegrees = (rad)=> 360 * rad / (2 * Math.PI)
             let initialAlpha = null;
