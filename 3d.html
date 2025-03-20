@@ -668,10 +668,10 @@
                     this.canvasElement.onmouseup = this.onMouseUp;
 
                     this.initialOrientationAlpha = null;
-                    this.containerElement.addEventListener("deviceorientation", this.handleOrientationChange, true);
+                    // this.containerElement.addEventListener("deviceorientation", this.handleOrientationChange, true);
                 }
                 
-                handleOrientationChange(){
+                handleOrientationChange(e){
                     // console.log("e.beta:", e.beta);
                     // console.log("e.alpha:", e.gamma);
                     document.getElementById("orientation").innerHTML=`
