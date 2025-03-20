@@ -13,7 +13,7 @@
         <!-- <script src="https://unpkg.com/shapefile@0.6"></script> -->
     </head>
     <body>
-        <div id="container">
+        <!-- <div id="container">
             <canvas class="canvas" id="canvasLeft" width="1200" height="750"></canvas>
             <canvas class="canvas" id="canvasRight" width="1200" height="750"></canvas>
         </div>
@@ -28,7 +28,7 @@
             Right
             <span id="canvas-alpha"></span>
             <span id="canvas-beta"></span>
-        </div>
+        </div> -->
 
         <div id="orientation"></div>
         
@@ -98,8 +98,8 @@
                 get(x, y, z){
                     const projection = Project3D.perpendicularProjection(this.normal, [x, y, z]);
                     return [
-                        Math.round(Project3D.dotProduct(this.x_projection, projection)), 
-                        Math.round(Project3D.dotProduct(this.y_projection, projection)),
+                        Project3D.dotProduct(this.x_projection, projection), 
+                        Project3D.dotProduct(this.y_projection, projection),
                     ];
                 }
 
@@ -191,23 +191,59 @@
             }
 
             class Canvas3D{
-                constructor(id, perspective, cameraPosition){
-                    this.id = id;
-                    this.canvasElement = document.getElementById(id);
+                static count = 0;
+                static names = [];  
+
+                createHTML(){
+                    this.containerElement = document.createElement("div");
+                    this.containerElement.className = "canvas-3d-container";
+                    this.containerElement.id = this.name;
+
+                    this.canvasElement = document.createElement('canvas');
+                    this.canvasElement.className = "canvas-3d";
+                    this.canvasElement.width = this.width;
+                    this.canvasElement.height = this.height;
+                    this.containerElement.appendChild(this.canvasElement);
+
+                    this.statusElement = document.createElement("div");
+                    this.className = "canvas-3d-status";
+                    this.containerElement.append(this.statusElement);
+                    
+                    this.parentElement.appendChild(this.containerElement);
+                }
+
+                constructor(parentElement, name, width, height, cameraPosition, alpha, beta){
+                    this.parentElement = parentElement ? parentElement : document.body;
+
+                    Canvas3D.count+=1;
+                    if(name){
+                        if(Canvas3D.names.indexOf(name)!=-1){
+                            name = name +'-'+ count;
+                        }
+                        this.name = name; 
+                    } else {
+                        this.name = `canvas-3d-${Canvas3D.count}`
+                    }
+                    Canvas3D.names.push(this.name);
+
+                    this.width = width ? width : window.innerWidth;
+                    this.height = height ? height : window.innerHeight;
+                    
+                    this.createHTML();
+                    // this.canvasElement = document.getElementById(id);
+
                     this.ctx = this.canvasElement.getContext("2d");
                     this.origin_x = this.canvasElement.width  / 2;
                     this.origin_y = this.canvasElement.height / 2;
 
-                    this.alpha = perspective ? perspective[0]%360 : 360 * Math.asin(1/(2**0.5))/(2*Math.PI);
+                    this.alpha = alpha ? alpha%360 : 360 * Math.asin(1/(2**0.5))/(2*Math.PI);
                     this.initAlpha = this.alpha;
 
-                    this.beta  = perspective ? perspective[1]%360 : 360 * Math.asin(1/(3**0.5))/(2*Math.PI);
+                    this.beta  = beta ? beta%360 : 360 * Math.asin(1/(3**0.5))/(2*Math.PI);
                     this.initBeta = this.beta;
 
                     this.cameraPosition = cameraPosition ? cameraPosition :[400, 400, 400];
                     this.currenFocusPoint = [0, 0, 0]; 
-
-                    this.displayPerspective(this.alpha, this.beta);
 
                     this.perspective = Project3D.unitVector(Canvas3D.getPerspective(this.alpha, this.beta));
                     this.project3D = new Project3D(this.perspective);
@@ -215,15 +251,25 @@
                         lines:[],
                         polygons: []
                     };
+                    this.displayPerspective();
+
                     // this.showPerspectiveIndicator();
                     this.enablePerspectiveChange();
-                    this.changePerspectiveTo([this.alpha, this.beta])
+                    // this.changePerspectiveTo([this.alpha, this.beta])
                 }
 
-                displayPerspective(alpha, beta){
-                    const contanier = document.getElementById(`${this.id}-perspective`);
-                    contanier.querySelector("#canvas-alpha").textContent = Math.round(alpha);
-                    contanier.querySelector("#canvas-beta").textContent = Math.round(beta);
+                displayPerspective(){
+                    this.statusElement.innerHTML = `
+                    <br>
+                    perspective: (${this.alpha.toFixed(2)}, ${this.beta.toFixed(2)})
+                    <br>
+                    currentFocus: 
+                        ${this.currenFocusPoint.map(v=>v.toFixed(2))}; 
+                        ${this.toCoords(...this.currenFocusPoint).map(v=>v.toFixed(2))}
+                    <br>
+                    absolute-origin-position: (${this.origin_x.toFixed()}, ${this.origin_y.toFixed(2)}) 
+                    <br>
+                    `
                 }
 
                 static getPerspective(alpha, beta){
@@ -244,23 +290,30 @@
                     return 2*Math.PI*(degrees/360.0);
                 }
 
-                toCoords(x, y){
-                    return [x + this.origin_x, this.origin_y - y];
+                toCoords(x, y, z){
+                    const projection_2d = this.project3D.get(x, y, z); 
+                    return [projection_2d[0] + this.origin_x, this.origin_y - projection_2d[1]];
                 }
 
                 drawLine(x1, y1, z1, x2, y2, z2){
-                    this.ctx.moveTo(...this.toCoords(...this.project3D.get(x1, y1, z1)));
-                    this.ctx.lineTo(...this.toCoords(...this.project3D.get(x2, y2, z2)));
+                    this.ctx.moveTo(...this.toCoords(x1, y1, z1));
+                    this.ctx.lineTo(...this.toCoords(x2, y2, z2));
                     this.ctx.stroke();
             
                     this.shapes.lines.push([x1, y1, z1, x2, y2, z2]);
                 }
 
+                drawAxis(length){
+                    this.drawLine(0, 0, 0, length, 0, 0);
+                    this.drawLine(0, 0, 0, 0, length, 0);
+                    this.drawLine(0, 0, 0, 0, 0, length);
+                }
+
                 drawPolygon(coords, fillColor, drawBorders){
                     const polygon = new Path2D();
-                    polygon.moveTo(...this.toCoords(...this.project3D.get(...coords[0])))
+                    polygon.moveTo(...this.toCoords(...coords[0]))
                     coords.slice(1).forEach(c=>{
-                        polygon.lineTo(...this.toCoords(...this.project3D.get(...c)));
+                        polygon.lineTo(...this.toCoords(...c));
                     });
                     polygon.closePath();
 
@@ -502,10 +555,13 @@
                 }
 
                 changePerspectiveTo(perspective){
-                    [this.alpha, this.beta] = perspective;
+                    
+                    const [alpha, beta] = perspective;
+                    
+                    if(beta > 90 || beta < -90 || alpha > 135 || alpha < -45) return;
+                    // else if (this.beta < -90) return;
 
-                    if(this.beta > 90) this.beta = 90;
-                    else if (this.beta < -90) this.beta = -90;
+                    [this.alpha, this.beta] = perspective;
 
                     this.alpha = this.alpha%360;
                     if(this.alpha < 0) this.alpha = 360 + this.alpha;
@@ -532,11 +588,11 @@
                         )
                     )
 
-                    a = this.project3D.get(...a);
+                    // a = this.project3D.get(...a);
                     
 
                     // console.log(this.origin_x, this.origin_y);
-                    a = this.toCoords(a[0], a[1])
+                    a = this.toCoords(...a);
                     // console.log(a);
 
                     this.origin_x = a[0];
@@ -562,7 +618,7 @@
                     // )
                     this.perspective = perspective;
                     this.project3D = new Project3D(this.perspective);
-                    this.displayPerspective(this.alpha, this.beta);
+                    this.displayPerspective();
 
                     this.refresh();
                 }
@@ -592,8 +648,8 @@
                 onMouseMove = (e)=>{
                     if(this.isMouseDown){
                         const newPerspective = [
-                            (this.alpha + 10 * (e.clientX - this.initX)/e.target.width)%360,
-                            (this.beta  + 10 * (e.clientY - this.initY)/e.target.height)%360
+                            (this.alpha + (e.clientX - this.initX)/e.target.width)%360,
+                            (this.beta  + (e.clientY - this.initY)/e.target.height)%360
                         ];
                         this.changePerspectiveTo(newPerspective);
                         // this.drawArc( Project3D.scalerProd(-1, this.currenFocusPoint), [0, 0, 1], 20, 0, 360, 'gold', false);
@@ -610,195 +666,41 @@
                     this.canvasElement.onmousedown = this.onMouseDown;
                     this.canvasElement.onmousemove = this.onMouseMove;
                     this.canvasElement.onmouseup = this.onMouseUp;
+
+                    this.initialOrientationAlpha = null;
+                    this.containerElement.addEventListener("deviceorientation", this.handleOrientationChange, true);
                 }
-            }
-
-            const deltaAngle = 360*Math.atan(3.5/400)/(2*Math.PI);
-            console.log(deltaAngle);
-
-            document.getElementById("canvasLeft").width = window.innerWidth/3;
-            const windw_height = window.innerHeight;
-            document.getElementById("canvasLeft").height = windw_height * 0.78;
-            document.getElementById("canvasRight").width = window.innerWidth/3;
-            document.getElementById("canvasRight").height = windw_height * 0.78;
-            
-            const canvasLeft = new Canvas3D(
-                id="canvasLeft", 
-                [
-                    360 * Math.asin(1/(2**0.5))/(2*Math.PI) + deltaAngle, 
-                    360 * Math.asin(300/(400*(2**0.5)))/(2*Math.PI) // 360 * Math.asin(1/(3**0.5))/(2*Math.PI)
-                ],
-                [400-4, 400+3, 300]
-            );
-            // canvasLeft.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
-
-            const canvasRight = new Canvas3D(
-                id="canvasRight", 
-                [
-                    360 * Math.asin(1/(2**0.5))/(2*Math.PI) - deltaAngle, 
-                    360 * Math.asin(300/(400*(2**0.5)))/(2*Math.PI) // 360 * Math.asin(1/(3**0.5))/(2*Math.PI)
-                ],
-                [400+4, 400-3, 300]
-            );
-            // canvasRight.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
-
-            function drawTable(canvas){
-                const height = 150;
-                const lenght = 200;
-                const width = 150;
-                const pillar_width = 5;
-                const pillar_corner_offset = 10;
-                const top_thickness = 10;
-
-                const table_top=[
-                    [0, 0, height],
-                    [lenght, 0, height],
-                    [lenght, width, height],
-                    [0, width, height],
-                    [0, 0, height],
-                ]
-
-                const pillar_base=[
-                    [0, 0, 0],
-                    [pillar_width, 0, 0],
-                    [pillar_width, pillar_width, 0],
-                    [0, pillar_width, 0],
-                    [0, 0, 0],
-                ]
-                canvas.drawBlock(table_top, top_thickness, "brown", true);
-                canvas.drawBlock(
-                    pillar_base.map(p=>Project3D.addVectors([pillar_corner_offset, pillar_corner_offset, 0], p)), 
-                    height, 
-                    "brown", 
-                    true
-                )
-
-                canvas.drawBlock(
-                    pillar_base.map(p=>Project3D.addVectors([lenght-pillar_corner_offset-pillar_width, pillar_corner_offset, 0], p)), 
-                    height, 
-                    "brown", 
-                    true
-                )
-
-                canvas.drawBlock(
-                    pillar_base.map(p=>Project3D.addVectors([lenght-pillar_corner_offset-pillar_width, width-pillar_corner_offset-pillar_width, 0], p)), 
-                    height, 
-                    "brown", 
-                    true
-                )
-
-                canvas.drawBlock(
-                    pillar_base.map(p=>Project3D.addVectors([pillar_corner_offset, width-pillar_corner_offset-pillar_width, 0], p)), 
-                    height, 
-                    "brown", 
-                    true
-                )
-
                 
-                const title_width = 40;
-                const tile=[
-                    [0, 0, 0],
-                    [title_width, 0, 0],
-                    [title_width, title_width, 0],
-                    [0, title_width, 0],
-                    [0, 0, 0]
-                ]
+                handleOrientationChange(){
+                    // console.log("e.beta:", e.beta);
+                    // console.log("e.alpha:", e.gamma);
+                    document.getElementById("orientation").innerHTML=`
+                    <br>
+                    e.beta: ${e.beta.toFixed(2)}
+                    <br>
+                    e.gamma: ${e.gamma.toFixed(2)}
+                    <br>
+                    e.alpha: ${e.alpha.toFixed(2)}
+                    <br>
+                    e.absolute: ${e.absolute}
+                    `
+                    if(e.beta && e.alpha){
+                        if(this.initialOrientationAlpha==null){
+                            this.initialOrientationAlpha = e.alpha;
+                        }
 
-                // for(let i=-20; i<20; i++){
-                //     for (let j=-20; j<20; j++){
-                //         canvas.drawPolygon(tile.map(t=>Project3D.addVectors([40*i, 40*j, 0], t)), 'white', false)
-                //     }
-                // }
-
-                canvas.drawCone([lenght-20, width-20, height + 2 * top_thickness], [0, 0, 1], 40, 40, 40, "green", true);
-                return;
-            }
-
-            // drawTable(canvasLeft);
-            // drawTable(canvasRight);
-
-            // canvasLeft.drawLine(0, 0, 0, 400, 0, 0)
-            // canvasLeft.drawLine(0, 0, 0, 0, 400, 0)
-            // canvasLeft.drawLine(0, 0, 0, 0, 0, 400)
-            canvasLeft.drawBlock([
-                [0, 0, 20],
-                [100, 0, 20],
-                [100, 100, 20],
-                [0, 100, 20],
-                [0, 0, 20]
-            ], 30, 'gold', true)
-
-            // canvasRight.drawLine(0, 0, 0, 400, 0, 0)
-            // canvasRight.drawLine(0, 0, 0, 0, 400, 0)
-            // canvasRight.drawLine(0, 0, 0, 0, 0, 400)
-            canvasRight.drawBlock([
-                [0, 0, 20],
-                [100, 0, 20],
-                [100, 100, 20],
-                [0, 100, 20],
-                [0, 0, 20]
-            ], 30, 'gold', true)
-
-            // canvasLeft.drawBlock([
-            //     [0, 0, 0],
-            //     [10, 0, 0],
-            //     [10, 10, 0],
-            //     [0, 10, 0],
-            //     [0, 0, 0]
-            // ], 10, 'gold', true)
-
-            function enableFullScreenMode(){
-                let fullscreen = false;
-                document.getElementById("container").ontouchend = ()=>{ 
-                    if(fullscreen) {
-                        // document.getElementById("container").exitFullscreen(); 
-                        fullscreen = false;
-                    } else {
-                        document.getElementById("container").requestFullscreen();
-                        fullscreen = true;
-                    }
-
-                    document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
-                }
-            }
-            enableFullScreenMode();
-
-            const toDegrees = (rad)=> 360 * rad / (2 * Math.PI)
-            let initialAlpha = null;
-
-            const handleOrientation = (e)=>{
-                // console.log("e.beta:", e.beta);
-                // console.log("e.alpha:", e.gamma);
-                document.getElementById("orientation").innerHTML=`
-                <br>
-                e.beta: ${e.beta}
-                <br>
-                e.gamma: ${e.gamma}
-                <br>
-                e.alpha: ${e.alpha}
-                <br>
-                e.absolute: ${e.absolute}
-                `
-                if(e.beta && e.alpha){
-                    if(initialAlpha==null){
-                        initialAlpha = e.alpha;
-                    }
-
-                    
-                    const betaDelta  = ((e.gamma < 0) ? (e.gamma + 90 - canvasLeft.initBeta) : -(90-e.gamma) - canvasLeft.initBeta);
-                    const alphaDelta = -(
-                        (
-                            (e.gamma < 0) 
-                            ? e.alpha 
-                            : (e.alpha + (initialAlpha<=180 ? -180 : 180 ))
-                        ) 
-                        - initialAlpha
-                    )
-
-                    if(true){//alphaDelta>=5 || betaDelta>=5){
-                        canvasLeft.changePerspectiveTo([
-                            canvasLeft.initAlpha + alphaDelta, 
-                            canvasLeft.initBeta  + betaDelta,
+                        const betaDelta  = ((e.gamma < 0) ? (e.gamma + 90 - canvasLeft.initBeta) : -(90-e.gamma) - canvasLeft.initBeta);
+                        const alphaDelta = -(
+                            (
+                                (e.gamma < 0) 
+                                ? e.alpha 
+                                : (e.alpha + (this.initialOrientationAlpha<=180 ? -180 : 180 ))
+                            ) 
+                            - this.initialOrientationAlpha
+                        )
+                        this.changePerspectiveTo([
+                            this.initAlpha + alphaDelta, 
+                            this.initBeta  + betaDelta,
                         ]);
 
                         canvasRight.changePerspectiveTo([
@@ -808,18 +710,227 @@
 
                         document.getElementById("orientation").innerHTML += `
                             <br>
-                            canvasLeft.alpha : ${canvasLeft.alpha }
+                            canvasLeft.alpha : ${this.alpha.toFixed(2) }
                             <br>
-                            canvasLeft.beta : ${canvasLeft.beta }
+                            canvasLeft.beta : ${this.beta.toFixed(2) }
                             <br>
-                            canvasLeft.currenFocusPoint: ${canvasLeft.currenFocusPoint.map(v=>v.toFixed(2)) }
+                            canvasLeft.currenFocusPoint: ${this.currenFocusPoint.map(v=>v.toFixed(2)) }
                             <br>
-                            canvasLeft.origin: ${canvasLeft.origin_x},${canvasLeft.origin_y} 
-                        `
-                    }                    
+                            canvasLeft.origin: ${this.origin_x.toFixed()},${this.origin_y.toFixed()} 
+                        `             
+                    }
                 }
             }
-            window.addEventListener("deviceorientation", handleOrientation, true);
+
+            const world = new Canvas3D(); 
+
+            // const deltaAngle = 360*Math.atan(3.5/400)/(2*Math.PI);
+            // console.log(deltaAngle);
+
+            // document.getElementById("canvasLeft").width = window.innerWidth/3;
+            // const windw_height = window.innerHeight;
+            // document.getElementById("canvasLeft").height = windw_height * 0.78;
+            // document.getElementById("canvasRight").width = window.innerWidth/3;
+            // document.getElementById("canvasRight").height = windw_height * 0.78;
+            
+            // const canvasLeft = new Canvas3D(
+            //     id="canvasLeft", 
+            //     [
+            //         360 * Math.asin(1/(2**0.5))/(2*Math.PI) + deltaAngle, 
+            //         360 * Math.asin(300/(400*(2**0.5)))/(2*Math.PI) // 360 * Math.asin(1/(3**0.5))/(2*Math.PI)
+            //     ],
+            //     [400-4, 400+3, 300]
+            // );
+            // // canvasLeft.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
+
+            // const canvasRight = new Canvas3D(
+            //     id="canvasRight", 
+            //     [
+            //         360 * Math.asin(1/(2**0.5))/(2*Math.PI) - deltaAngle, 
+            //         360 * Math.asin(300/(400*(2**0.5)))/(2*Math.PI) // 360 * Math.asin(1/(3**0.5))/(2*Math.PI)
+            //     ],
+            //     [400+4, 400-3, 300]
+            // );
+            // // canvasRight.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
+
+            // function drawTable(canvas){
+            //     const height = 150;
+            //     const lenght = 200;
+            //     const width = 150;
+            //     const pillar_width = 5;
+            //     const pillar_corner_offset = 10;
+            //     const top_thickness = 10;
+
+            //     const table_top=[
+            //         [0, 0, height],
+            //         [lenght, 0, height],
+            //         [lenght, width, height],
+            //         [0, width, height],
+            //         [0, 0, height],
+            //     ]
+
+            //     const pillar_base=[
+            //         [0, 0, 0],
+            //         [pillar_width, 0, 0],
+            //         [pillar_width, pillar_width, 0],
+            //         [0, pillar_width, 0],
+            //         [0, 0, 0],
+            //     ]
+            //     canvas.drawBlock(table_top, top_thickness, "brown", true);
+            //     canvas.drawBlock(
+            //         pillar_base.map(p=>Project3D.addVectors([pillar_corner_offset, pillar_corner_offset, 0], p)), 
+            //         height, 
+            //         "brown", 
+            //         true
+            //     )
+
+            //     canvas.drawBlock(
+            //         pillar_base.map(p=>Project3D.addVectors([lenght-pillar_corner_offset-pillar_width, pillar_corner_offset, 0], p)), 
+            //         height, 
+            //         "brown", 
+            //         true
+            //     )
+
+            //     canvas.drawBlock(
+            //         pillar_base.map(p=>Project3D.addVectors([lenght-pillar_corner_offset-pillar_width, width-pillar_corner_offset-pillar_width, 0], p)), 
+            //         height, 
+            //         "brown", 
+            //         true
+            //     )
+
+            //     canvas.drawBlock(
+            //         pillar_base.map(p=>Project3D.addVectors([pillar_corner_offset, width-pillar_corner_offset-pillar_width, 0], p)), 
+            //         height, 
+            //         "brown", 
+            //         true
+            //     )
+
+                
+            //     const title_width = 40;
+            //     const tile=[
+            //         [0, 0, 0],
+            //         [title_width, 0, 0],
+            //         [title_width, title_width, 0],
+            //         [0, title_width, 0],
+            //         [0, 0, 0]
+            //     ]
+
+            //     // for(let i=-20; i<20; i++){
+            //     //     for (let j=-20; j<20; j++){
+            //     //         canvas.drawPolygon(tile.map(t=>Project3D.addVectors([40*i, 40*j, 0], t)), 'white', false)
+            //     //     }
+            //     // }
+
+            //     canvas.drawCone([lenght-20, width-20, height + 2 * top_thickness], [0, 0, 1], 40, 40, 40, "green", true);
+            //     return;
+            // }
+
+            // // drawTable(canvasLeft);
+            // // drawTable(canvasRight);
+
+            // // canvasLeft.drawLine(0, 0, 0, 400, 0, 0)
+            // // canvasLeft.drawLine(0, 0, 0, 0, 400, 0)
+            // // canvasLeft.drawLine(0, 0, 0, 0, 0, 400)
+            // canvasLeft.drawBlock([
+            //     [0, 0, 20],
+            //     [100, 0, 20],
+            //     [100, 100, 20],
+            //     [0, 100, 20],
+            //     [0, 0, 20]
+            // ], 30, 'gold', true)
+
+            // // canvasRight.drawLine(0, 0, 0, 400, 0, 0)
+            // // canvasRight.drawLine(0, 0, 0, 0, 400, 0)
+            // // canvasRight.drawLine(0, 0, 0, 0, 0, 400)
+            // canvasRight.drawBlock([
+            //     [0, 0, 20],
+            //     [100, 0, 20],
+            //     [100, 100, 20],
+            //     [0, 100, 20],
+            //     [0, 0, 20]
+            // ], 30, 'gold', true)
+
+            // // canvasLeft.drawBlock([
+            // //     [0, 0, 0],
+            // //     [10, 0, 0],
+            // //     [10, 10, 0],
+            // //     [0, 10, 0],
+            // //     [0, 0, 0]
+            // // ], 10, 'gold', true)
+
+            // function enableFullScreenMode(){
+            //     let fullscreen = false;
+            //     document.getElementById("container").ontouchend = ()=>{ 
+            //         if(fullscreen) {
+            //             // document.getElementById("container").exitFullscreen(); 
+            //             fullscreen = false;
+            //         } else {
+            //             document.getElementById("container").requestFullscreen();
+            //             fullscreen = true;
+            //         }
+
+            //         document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
+            //     }
+            // }
+            // enableFullScreenMode();
+
+            // const toDegrees = (rad)=> 360 * rad / (2 * Math.PI)
+            // let initialAlpha = null;
+
+            // const handleOrientation = (e)=>{
+            //     // console.log("e.beta:", e.beta);
+            //     // console.log("e.alpha:", e.gamma);
+            //     document.getElementById("orientation").innerHTML=`
+            //     <br>
+            //     e.beta: ${e.beta}
+            //     <br>
+            //     e.gamma: ${e.gamma}
+            //     <br>
+            //     e.alpha: ${e.alpha}
+            //     <br>
+            //     e.absolute: ${e.absolute}
+            //     `
+            //     if(e.beta && e.alpha){
+            //         if(initialAlpha==null){
+            //             initialAlpha = e.alpha;
+            //         }
+
+                    
+            //         const betaDelta  = ((e.gamma < 0) ? (e.gamma + 90 - canvasLeft.initBeta) : -(90-e.gamma) - canvasLeft.initBeta);
+            //         const alphaDelta = -(
+            //             (
+            //                 (e.gamma < 0) 
+            //                 ? e.alpha 
+            //                 : (e.alpha + (initialAlpha<=180 ? -180 : 180 ))
+            //             ) 
+            //             - initialAlpha
+            //         )
+
+            //         if(true){//alphaDelta>=5 || betaDelta>=5){
+            //             canvasLeft.changePerspectiveTo([
+            //                 canvasLeft.initAlpha + alphaDelta, 
+            //                 canvasLeft.initBeta  + betaDelta,
+            //             ]);
+
+            //             canvasRight.changePerspectiveTo([
+            //                 canvasRight.initAlpha + alphaDelta , 
+            //                 canvasRight.initBeta  + betaDelta,
+            //             ]);
+
+            //             document.getElementById("orientation").innerHTML += `
+            //                 <br>
+            //                 canvasLeft.alpha : ${canvasLeft.alpha }
+            //                 <br>
+            //                 canvasLeft.beta : ${canvasLeft.beta }
+            //                 <br>
+            //                 canvasLeft.currenFocusPoint: ${canvasLeft.currenFocusPoint.map(v=>v.toFixed(2)) }
+            //                 <br>
+            //                 canvasLeft.origin: ${canvasLeft.origin_x},${canvasLeft.origin_y} 
+            //             `
+            //         }                    
+            //     }
+            // }
+            // window.addEventListener("deviceorientation", handleOrientation, true);
         </script>
     </body>
 </html>
