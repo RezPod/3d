@@ -2,37 +2,30 @@
 <html>
     <head>
         <style>
-            .canvas{
+            .canvas-3d{
+                background-color: skyblue;
                 /* border: 1px solid black; */
             }
+            .canvas-3d-status{
+                position: absolute;
+                top: 0px;
+                left: 20px;
+                z-index: 1;
+                font-weight: bold;
+            }
+
             body{
                 background-color: white;
                 padding: 0%;
             }
         </style>
-        <!-- <script src="https://unpkg.com/shapefile@0.6"></script> -->
     </head>
     <body>
-        <!-- <div id="container">
-            <canvas class="canvas" id="canvasLeft" width="1200" height="750"></canvas>
-            <canvas class="canvas" id="canvasRight" width="1200" height="750"></canvas>
-        </div>
-
-        <div id="canvasLeft-perspective">
-            Left
-            <span id="canvas-alpha"></span>
-            <span id="canvas-beta"></span>
-        </div>
-
-        <div id="canvasRight-perspective">
-            Right
-            <span id="canvas-alpha"></span>
-            <span id="canvas-beta"></span>
-        </div> -->
-
-        <div id="orientation"></div>
-        
         <script>
+            const IS_BEHIND = 1;
+            const IS_IN_FRONT= 2;
+            const IS_INTERSECTING = 3;
+            const IS_ON = 4
 
             class Project3D{
                 static dotProduct(normal, point){
@@ -55,14 +48,14 @@
 
                 static unitVector(vector){
                     const magnitude = Project3D.getMagnitude(vector);
-                    return vector.map(v=>v/magnitude);
+                    return magnitude ? vector.map(v=>v/magnitude) : vector;
                 }
 
                 static vectorProd(v1, v2){
                     return [
-                        v1[1]*v2[2]-v1[2]*v2[1], 
-                        v1[2]*v2[0]-v1[0]*v2[2], 
-                        v1[0]*v2[1]-v1[1]*v2[0]
+                        -(v1[1]*v2[2]-v1[2]*v2[1]), 
+                        -(v1[2]*v2[0]-v1[0]*v2[2]), 
+                        -(v1[0]*v2[1]-v1[1]*v2[0])
                     ]
                 }
 
@@ -71,7 +64,7 @@
                 }
 
                 static addVectors(v1, v2){
-                    return [v1[0]+v2[0], v1[1]+v2[1], v1[2]+v2[2]];
+                    return v1.map((c, i)=>c+v2[i]);
                 }
 
                 static degreesToRadians(degrees){
@@ -89,10 +82,14 @@
                     ];
                 }
 
+                static compareVectors(v1, v2){
+                    return Project3D.getMagnitude(v1.map((v, i) => (v - v2[i]))) ? false : true ;
+                }
+
                 constructor(perspective){
                     this.normal = Project3D.unitVector(perspective);
                     this.y_projection = Project3D.unitVector(Project3D.perpendicularProjection(this.normal, [0, 0, 1]));
-                    this.x_projection = Project3D.vectorProd(this.normal, this.y_projection);
+                    this.x_projection = Project3D.vectorProd(this.y_projection, this.normal);
                 }
 
                 get(x, y, z){
@@ -103,91 +100,206 @@
                     ];
                 }
 
+                get3DCoords(x, y){
+                    return Project3D.addVectors(
+                        Project3D.scalerProd(x, this.x_projection),
+                        Project3D.scalerProd(y, this.y_projection)
+                    )
+                }
+
                 getHeight(x, y, z){
                     return Project3D.getMagnitude(Project3D.parallelProjection(this.normal, [x, y, z]));
                 }
 
-                static getDrawingOrder(polygons, perspective){
-                    return polygons.sort((a, b)=>{
-                        let center_join = Project3D.addVectors(
-                            Project3D.scalerProd(
-                                1.0/a.coords.length, 
-                                a.coords.reduce((i, c)=> Project3D.addVectors(i, c), [0, 0, 0])
-                            ), Project3D.scalerProd(
-                                -1.0/b.coords.length, 
-                                b.coords.reduce((i, c)=> Project3D.addVectors(i, c), [0, 0, 0])
-                            )
-                        )
-                        // console.log("a: ", a);
-                        // console.log("b: ", b)
-                        // console.log("center_join:", center_join);
-                        // console.log("this.normal:", this.normal);
-
-                        const result  = Project3D.dotProduct(perspective, center_join)
-                        // console.log("result: ", result);
-                        // console.log(null);
-                        return result;
-                    });
+                shadow(x, y, z, cameraPosition){
+                    const p1 = cameraPosition;
+                    const p2 = [x, y, z];
+                    const dir = Project3D.addVectors(p2, Project3D.scalerProd(-1, p1));
+                    const t = - Project3D.dotProduct(this.normal, p1)/
+                                Project3D.dotProduct(
+                                    this.normal, 
+                                    dir
+                                )
+                    return Project3D.addVectors(Project3D.scalerProd(t, dir), p1)
                 }
 
-                    // pointOnPlane = Project3D.scalerProd(-1, pointOnPlane);
+                static intersection(line, plane){
+                    const minusP1 = Project3D.scalerProd(-1, line.p1);
 
-                    // return polygons.sort((a, b)=>{
-                    //     const aMax = Math.max(
-                    //         ...a.coords.map(
-                    //             c=>Project3D.getMagnitude(
-                    //                 Project3D.parallelProjection(
-                    //                     normaltoPlane, 
-                    //                     Project3D.addVectors(
-                    //                         c,
-                    //                         pointOnPlane
-                    //                     )
-                    //                 )
-                    //             )
-                    //         )
-                    //     )
+                    // t = n.(r0-p1)/n.(p2-p1)
+                    const t = Project3D.dotProduct(
+                        plane.n, 
+                        Project3D.addVectors(plane.r0, minusP1)
+                    ) / Project3D.dotProduct(
+                        plane.n, 
+                        Project3D.addVectors(line.p2, minusP1)
+                    ) 
 
-                    //     const bMax = Math.max(
-                    //         ...b.coords.map(
-                    //             c=>Project3D.getMagnitude(
-                    //                 Project3D.parallelProjection(
-                    //                     normaltoPlane, 
-                    //                     Project3D.addVectors(
-                    //                         c,
-                    //                         pointOnPlane
-                    //                     )
-                    //                 )
-                    //             )
-                    //         )
-                    //     )
-                    //     return aMax - bMax;
-                    // })
 
-                    // pointOnPlane = Project3D.scalerProd(-1, pointOnPlane);
+                    // r(t) = p1 + t(p2-p1) 
+                    return Project3D.addVectors(
+                        line.p1, 
+                        Project3D.scalerProd(
+                            t,
+                            Project3D.addVectors(
+                                line.p2,
+                                minusP1
+                            )
+                        )
+                    )
+                }
 
-                //     const ref =(p) =>  Project3D.addVectors(p, Project3D.scalerProd(-1, curentfocusPoint));
+                static regularPolygonBase(n, center, diameter, normal){
+                    normal = normal ? Project3D.unitVector(normal) : [0, 0, 1];
+                    const angle = (2 * Math.PI) / n;
+                    const radius = diameter / 2;
 
-                //     return polygons.sort((a, b)=>{
-                        
-                //         const r0 = Project3D.scalerProd(-1,  ref(a.coords[0]));
-                //         const n = Project3D.unitVector(Project3D.vectorProd(
-                //             Project3D.addVectors(ref(a.coords[1]), r0),
-                //             Project3D.addVectors(ref(a.coords[2]), r0)
-                //         ));
+                    const x = Project3D.compareVectors([0, 1, 0], normal) 
+                        ? [1, 0, 0] 
+                        : [0, 1, 0]
 
-                //         const k = Project3D.dotProduct(n, Project3D.addVectors(ref(cameraPosition), r0));
+                    const xAxisDir = Project3D.unitVector(Project3D.vectorProd(normal, x));
+                    const yAxisDir = Project3D.unitVector(Project3D.vectorProd(xAxisDir, normal));
 
-                //         for(let c of b.coords){
-                //             // const projectinOnRefPlane = Project3D.perpendicularProjection(normaltoPlane, c);
-                //             const v = Project3D.dotProduct(n, Project3D.addVectors(ref(c), r0));
-                //             // const c2 = Project3D.dotProduct(n, Project3D.addVectors(projectinOnRefPlane, r0));
-                //             if(k * v < 0){
-                //                 return +1;
-                //             }
-                //         }
-                //         return -1;
-                //     })
-                // }
+                    const base=[];
+
+                    for(let i=0; i <= n; i++){
+                        const radianAngle = Math.PI / 4 + i * angle;
+                        const r = Project3D.addVectors(
+                            Project3D.scalerProd(radius * Math.cos(radianAngle), xAxisDir),
+                            Project3D.scalerProd(radius * Math.sin(radianAngle), yAxisDir)
+                        )
+                        base.push(
+                            Project3D.addVectors(
+                                center, 
+                                r
+                            )
+                        );
+                    }
+
+                    return base;
+                }   
+
+                static regularRectangularBase(n, center, diameter1, diameter2, normal){
+                    normal = normal ? Project3D.unitVector(normal) : [0, 0, 1];
+                    const angle = (2 * Math.PI) / n;
+                    const radius1 = diameter1 / 2;
+                    const radius2 = diameter2 / 2;
+
+                    const x = Project3D.compareVectors([0, 1, 0], normal) 
+                        ? [1, 0, 0] 
+                        : [0, 1, 0]
+
+                    const xAxisDir = Project3D.unitVector(Project3D.vectorProd(normal, x));
+                    const yAxisDir = Project3D.unitVector(Project3D.vectorProd(xAxisDir, normal));
+
+                    const base=[];
+
+                    for(let i=0; i <= n; i++){
+                        const radianAngle =  i * angle;
+                        const r = Project3D.addVectors(
+                            Project3D.scalerProd(radius1 * Math.cos(radianAngle), xAxisDir),
+                            Project3D.scalerProd(radius2 * Math.sin(radianAngle), yAxisDir)
+                        )
+                        base.push(
+                            Project3D.addVectors(
+                                center, 
+                                r
+                            )
+                        );
+                    }
+
+                    return base;
+                }
+
+                static relativeLocation(a, b, perspective){
+
+                    const r0 = b.coords[0];
+                    const minusR0 = Project3D.scalerProd(-1, r0);
+                    const n = Project3D.unitVector(
+                        Project3D.vectorProd(
+                            Project3D.addVectors(b.coords[1], minusR0),
+                            Project3D.addVectors(b.coords[2], minusR0)
+                        )
+                    );
+
+                    const result = [];
+
+                    for(let p of a.coords){
+                        const intersectionPoint = Project3D.intersection(
+                            {
+                                p1 : p,
+                                p2 : Project3D.addVectors(p, perspective)
+                            },
+                            {
+                                r0,
+                                n
+                            }
+                        )
+                        const r = Project3D.addVectors(intersectionPoint, Project3D.scalerProd(-1, p));
+                        const k = Project3D.dotProduct(perspective, r);
+                        if(k < 0){
+                            result.push(1);
+                        } else if(k > 0){
+                            result.push(0);
+                        }
+                    }
+
+                    if(result.length > 0){
+                        const sum = result.reduce((i, v)=>i+v, 0);
+                        if(sum == result.length){
+                            return IS_IN_FRONT
+                        } else if (sum == 0){
+                            return IS_BEHIND;
+                        } else {
+                            return IS_INTERSECTING;
+                        }
+                    } else {
+                        return IS_ON
+                    }
+                }
+
+                static getDrawingOrder(polygons, perspective){
+
+                    const counts = (new Array(polygons.length)).fill(null).map((v, i)=>{return {c:0, i:i}});
+                    polygons.forEach(
+                        (p1, i)=>polygons.forEach(
+                            (p2, j)=>{
+                                const relativeLocation = Project3D.relativeLocation(p1, p2, perspective);
+                                if(relativeLocation===IS_IN_FRONT){
+                                    counts[i].c+=1;
+                                } else if (relativeLocation===IS_INTERSECTING){
+                                    if(Project3D.relativeLocation(p2, p1, perspective)===IS_BEHIND){
+                                        counts[i].c+=1;
+                                    }
+                                }
+                            }
+                        )
+                    )
+
+                    return counts.sort((a, b)=> a.c-b.c).map(v=>polygons[v.i]);
+
+                    // return polygons.sort( (a, b)=>{
+                    //     switch(Project3D.relativeLocation(a, b, perspective)){
+                    //         case IS_BEHIND:
+                    //             return -1;
+                    //         case IS_IN_FRONT:
+                    //             return 1;
+                    //         case IS_ON:
+                    //             return 0;
+                    //         case IS_INTERSECTING:
+                    //             switch(Project3D.relativeLocation(b, a, perspective)){
+                    //                 case IS_BEHIND:
+                    //                     return 1;
+                    //                 case IS_IN_FRONT:
+                    //                     return -1;
+                    //                 case IS_ON:
+                    //                     return 0;
+                    //             }
+                    //     }
+                    // });                
+                }
+  
             }
 
             class Canvas3D{
@@ -206,7 +318,7 @@
                     this.containerElement.appendChild(this.canvasElement);
 
                     this.statusElement = document.createElement("div");
-                    this.className = "canvas-3d-status";
+                    this.statusElement.className = "canvas-3d-status";
                     this.containerElement.append(this.statusElement);
                     
                     this.parentElement.appendChild(this.containerElement);
@@ -256,9 +368,11 @@
                     // this.showPerspectiveIndicator();
                     this.enablePerspectiveChange();
                     // this.changePerspectiveTo([this.alpha, this.beta])
+                    this.shapeCount = 0;
                 }
 
-                displayPerspective(){
+                displayPerspective(cur_x, cur_y){
+                    // const currentLocation = this.project3D.get3DCoords(this.initX, this.initY);
                     this.statusElement.innerHTML = `
                     <br>
                     perspective: (${this.alpha.toFixed(2)}, ${this.beta.toFixed(2)})
@@ -268,6 +382,8 @@
                         ${this.toCoords(...this.currenFocusPoint).map(v=>v.toFixed(2))}
                     <br>
                     absolute-origin-position: (${this.origin_x.toFixed()}, ${this.origin_y.toFixed(2)}) 
+                    <br>
+                    current-pointer-location: (${this.to3DCoords(cur_x, cur_y).map(c=>c.toFixed(2))})
                     <br>
                     `
                 }
@@ -291,8 +407,13 @@
                 }
 
                 toCoords(x, y, z){
-                    const projection_2d = this.project3D.get(x, y, z); 
+                    // const projection_2d =  this.project3D.get(...this.project3D.shadow(x, y, z, this.cameraPosition)); 
+                    const projection_2d =  this.project3D.get(x, y, z); 
                     return [projection_2d[0] + this.origin_x, this.origin_y - projection_2d[1]];
+                }
+
+                to3DCoords(x, y){
+                    return this.project3D.get3DCoords(x - this.origin_x, this.origin_y - y);
                 }
 
                 drawLine(x1, y1, z1, x2, y2, z2){
@@ -309,7 +430,7 @@
                     this.drawLine(0, 0, 0, 0, 0, length);
                 }
 
-                drawPolygon(coords, fillColor, drawBorders){
+                drawPolygon(coords, fillColor, drawBorders, shapeId){
                     const polygon = new Path2D();
                     polygon.moveTo(...this.toCoords(...coords[0]))
                     coords.slice(1).forEach(c=>{
@@ -326,7 +447,7 @@
                         this.ctx.stroke(polygon);
                     }
                     
-                    this.shapes.polygons.push({coords, fillColor, drawBorders});
+                    this.shapes.polygons.push({coords, fillColor, drawBorders, shapeId});
 
                     return polygon;
                 }
@@ -536,7 +657,7 @@
                                 p2, 
                                 p4, 
                                 p3
-                            ], color, edges);
+                            ], color, edges, this.shapeCount);
                         }
                         p1 = [...p2];
                         p3 = [...p4];
@@ -548,9 +669,10 @@
                     //     topPolygonCoords[0]
                     // ], color);
 
-                    this.drawPolygon(basePolygonCoords, color, edges);
-                    this.drawPolygon(topPolygonCoords, color, edges);
-
+                    this.drawPolygon(basePolygonCoords, color, edges, this.shapeCount);
+                    this.drawPolygon(topPolygonCoords, color, edges, this.shapeCount);
+                    
+                    this.shapeCount+=1;
                     this.refresh();
                 }
 
@@ -601,24 +723,10 @@
                     // console.log(this.origin_x, this.origin_y);
 
                     this.currenFocusPoint = newFocusPoint;
-                    
-                    
-                    // [this.origin_x, this.origin_y] = this.toCoords(
-                    //         this.project3D.get(...Project3D.scalerProd(
-                    //             -1, 
-                    //             Project3D.addVectors(
-                    //                 this.cameraPosition,
-                    //                 Project3D.scalerProd(
-                    //                     Project3D.getMagnitude(this.cameraPosition), 
-                    //                     Project3D.scalerProd(-1, this.perspective)
-                    //                 )
-                    //             )
-                    //         )
-                    //     )
-                    // )
                     this.perspective = perspective;
                     this.project3D = new Project3D(this.perspective);
-                    this.displayPerspective();
+                    
+                    // this.displayPerspective();
 
                     this.refresh();
                 }
@@ -627,16 +735,57 @@
                     const lines = [...this.shapes.lines];
                     this.shapes.lines = [];
 
-                    const polygons = [...this.shapes.polygons];
+                    let polygons = [...this.shapes.polygons];
                     this.shapes.polygons = [];
 
                     this.ctx.reset();
                     lines.forEach(v => this.drawLine(...v));
-                    Project3D.getDrawingOrder(
-                        polygons, 
-                        this.cameraPosition, 
-                        this.currenFocusPoint
-                    ).forEach(p => this.drawPolygon(p.coords, p.fillColor, p.drawBorders));
+                    
+                    const start_time = Date.now();
+
+                    Project3D
+                    .getDrawingOrder(polygons, this.perspective)
+                    .forEach(
+                        p=>this.drawPolygon(
+                            p.coords, 
+                            p.fillColor, 
+                            p.drawBorders, 
+                            p.shapeId
+                        )
+                    )
+
+                    /*
+                    // console.log("before sorting....................................")
+                    // polygons.forEach(
+                    //     (v, i) => { 
+                    //         console.log(`-----------${i}----------`); 
+                    //         v.coords.map(c => console.log(c.map(x => x.toFixed(2)))); 
+                    //         console.log("****************************************") 
+                    //     }
+                    // )
+
+                    const sorted_polygons = Project3D.getDrawingOrder(polygons, this.perspective);
+                    // console.log("after sorting....................................")
+                    // sorted_polygons.forEach(
+                    //     (v, i) => { 
+                    //         console.log(`-----------${i}----------`); 
+                    //         v.coords.map(c => console.log(c.map(x => x.toFixed(2)))); 
+                    //         console.log("****************************************") 
+                    //     }
+                    // )  
+
+                    for(let p of sorted_polygons){
+                        this.drawPolygon(p.coords, p.fillColor, p.drawBorders, p.shapeId);
+                    }
+                    // polygons.forEach(p => this.drawPolygon(p.coords, p.fillColor, p.drawBorders));
+                    */
+                }
+
+                clear(){
+                    this.shapes.lines = [];
+                    this.shapes.polygons = [];
+                    this.ctx.reset();
+                    this.shapeCount=0;
                 }
 
                 onMouseDown = (e)=>{
@@ -648,16 +797,24 @@
                 onMouseMove = (e)=>{
                     if(this.isMouseDown){
                         const newPerspective = [
-                            (this.alpha + (e.clientX - this.initX)/e.target.width)%360,
-                            (this.beta  + (e.clientY - this.initY)/e.target.height)%360
+                            (this.alpha + 10*(e.clientX - this.initX)/e.target.width)%360,
+                            (this.beta  + 10*(e.clientY - this.initY)/e.target.height)%360
                         ];
                         this.changePerspectiveTo(newPerspective);
+                        
                         // this.drawArc( Project3D.scalerProd(-1, this.currenFocusPoint), [0, 0, 1], 20, 0, 360, 'gold', false);
                         // this.drawArc(this.currenFocusPoint, this.perspective, 20, 0, 360, 'gold', true);
                     }
+                    this.displayPerspective(e.clientX, e.clientY); 
                 }
 
                 onMouseUp = (e)=>{
+                    // this.changePerspectiveTo(
+                    //     [
+                    //         (this.alpha + 10*(e.clientX - this.initX)/e.target.width)%360,
+                    //         (this.beta  + 10*(e.clientY - this.initY)/e.target.height)%360
+                    //     ]
+                    // )
                     this.isMouseDown = false;
                 }
 
@@ -718,140 +875,140 @@
             }
 
             const world = new Canvas3D(); 
+            const w = world;
 
-            // const deltaAngle = 360*Math.atan(3.5/400)/(2*Math.PI);
-            // console.log(deltaAngle);
+            function drawParallelogram(n, c1, c2, d1, d2, normal, color){
+                normal = normal ? normal : [0, 0, 1];
+                color = color ? color : 'gold';
 
-            // document.getElementById("canvasLeft").width = window.innerWidth/3;
-            // const windw_height = window.innerHeight;
-            // document.getElementById("canvasLeft").height = windw_height * 0.78;
-            // document.getElementById("canvasRight").width = window.innerWidth/3;
-            // document.getElementById("canvasRight").height = windw_height * 0.78;
-            
-            // const canvasLeft = new Canvas3D(
-            //     id="canvasLeft", 
-            //     [
-            //         360 * Math.asin(1/(2**0.5))/(2*Math.PI) + deltaAngle, 
-            //         360 * Math.asin(300/(400*(2**0.5)))/(2*Math.PI) // 360 * Math.asin(1/(3**0.5))/(2*Math.PI)
-            //     ],
-            //     [400-4, 400+3, 300]
-            // );
-            // // canvasLeft.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
+                const baseFace = Project3D.regularPolygonBase(n, c1, d1, normal);
+                const topFace = Project3D.regularPolygonBase(n, c2, d2, normal);
 
-            // const canvasRight = new Canvas3D(
-            //     id="canvasRight", 
-            //     [
-            //         360 * Math.asin(1/(2**0.5))/(2*Math.PI) - deltaAngle, 
-            //         360 * Math.asin(300/(400*(2**0.5)))/(2*Math.PI) // 360 * Math.asin(1/(3**0.5))/(2*Math.PI)
-            //     ],
-            //     [400+4, 400-3, 300]
-            // );
-            // // canvasRight.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
+                w.drawPolygon(baseFace, color, 1, w.shapeCount);
 
-            // function drawTable(canvas){
-            //     const height = 150;
-            //     const lenght = 200;
-            //     const width = 150;
-            //     const pillar_width = 5;
-            //     const pillar_corner_offset = 10;
-            //     const top_thickness = 10;
+                for(let i=0; i<baseFace.length-1; i++){
+                    w.drawPolygon(
+                        [baseFace[i], topFace[i], topFace[i+1], baseFace[i+1]],
+                        color, 
+                        1,
+                        w.shapeCount
+                    )
+                }
 
-            //     const table_top=[
-            //         [0, 0, height],
-            //         [lenght, 0, height],
-            //         [lenght, width, height],
-            //         [0, width, height],
-            //         [0, 0, height],
-            //     ]
+                w.drawPolygon(topFace, color, 1, w.shapeCount);
+                w.refresh();
+            }
 
-            //     const pillar_base=[
-            //         [0, 0, 0],
-            //         [pillar_width, 0, 0],
-            //         [pillar_width, pillar_width, 0],
-            //         [0, pillar_width, 0],
-            //         [0, 0, 0],
-            //     ]
-            //     canvas.drawBlock(table_top, top_thickness, "brown", true);
-            //     canvas.drawBlock(
-            //         pillar_base.map(p=>Project3D.addVectors([pillar_corner_offset, pillar_corner_offset, 0], p)), 
-            //         height, 
-            //         "brown", 
-            //         true
-            //     )
+            function virtualReality(){
+                const deltaAngle = 360*Math.atan(3.5/400)/(2*Math.PI);
+                console.log(deltaAngle);
 
-            //     canvas.drawBlock(
-            //         pillar_base.map(p=>Project3D.addVectors([lenght-pillar_corner_offset-pillar_width, pillar_corner_offset, 0], p)), 
-            //         height, 
-            //         "brown", 
-            //         true
-            //     )
+                document.getElementById("canvasLeft").width = window.innerWidth/3;
+                const windw_height = window.innerHeight;
+                document.getElementById("canvasLeft").height = windw_height * 0.78;
+                document.getElementById("canvasRight").width = window.innerWidth/3;
+                document.getElementById("canvasRight").height = windw_height * 0.78;
+                
+                const canvasLeft = new Canvas3D(
+                    id="canvasLeft", 
+                    [
+                        360 * Math.asin(1/(2**0.5))/(2*Math.PI) + deltaAngle, 
+                        360 * Math.asin(300/(400*(2**0.5)))/(2*Math.PI) // 360 * Math.asin(1/(3**0.5))/(2*Math.PI)
+                    ],
+                    [400-4, 400+3, 300]
+                );
+                // canvasLeft.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
 
-            //     canvas.drawBlock(
-            //         pillar_base.map(p=>Project3D.addVectors([lenght-pillar_corner_offset-pillar_width, width-pillar_corner_offset-pillar_width, 0], p)), 
-            //         height, 
-            //         "brown", 
-            //         true
-            //     )
+                const canvasRight = new Canvas3D(
+                    id="canvasRight", 
+                    [
+                        360 * Math.asin(1/(2**0.5))/(2*Math.PI) - deltaAngle, 
+                        360 * Math.asin(300/(400*(2**0.5)))/(2*Math.PI) // 360 * Math.asin(1/(3**0.5))/(2*Math.PI)
+                    ],
+                    [400+4, 400-3, 300]
+                );
+                // canvasRight.drawArc([1, 1, 2], [0, 0, 1], 20, 0, 360, "gold", false);
+            }
 
-            //     canvas.drawBlock(
-            //         pillar_base.map(p=>Project3D.addVectors([pillar_corner_offset, width-pillar_corner_offset-pillar_width, 0], p)), 
-            //         height, 
-            //         "brown", 
-            //         true
-            //     )
+            function drawTable(canvas){
+                const height = 150;
+                const lenght = 200;
+                const width = 150;
+                const pillar_width = 5;
+                const pillar_corner_offset = 10;
+                const top_thickness = 10;
+
+                const table_top=[
+                    [0, 0, height],
+                    [lenght, 0, height],
+                    [lenght, width, height],
+                    [0, width, height],
+                    [0, 0, height],
+                ]
+
+                const pillar_base=[
+                    [0, 0, 0],
+                    [pillar_width, 0, 0],
+                    [pillar_width, pillar_width, 0],
+                    [0, pillar_width, 0],
+                    [0, 0, 0],
+                ]
+                canvas.drawBlock(table_top, top_thickness, "gold", true);
+                canvas.drawBlock(
+                    pillar_base.map(p=>Project3D.addVectors([pillar_corner_offset, pillar_corner_offset, 0], p)), 
+                    height, 
+                    "gold", 
+                    true
+                )
+
+                canvas.drawBlock(
+                    pillar_base.map(p=>Project3D.addVectors([lenght-pillar_corner_offset-pillar_width, pillar_corner_offset, 0], p)), 
+                    height, 
+                    "gold", 
+                    true
+                )
+
+                canvas.drawBlock(
+                    pillar_base.map(p=>Project3D.addVectors([lenght-pillar_corner_offset-pillar_width, width-pillar_corner_offset-pillar_width, 0], p)), 
+                    height, 
+                    "gold", 
+                    true
+                )
+
+                canvas.drawBlock(
+                    pillar_base.map(p=>Project3D.addVectors([pillar_corner_offset, width-pillar_corner_offset-pillar_width, 0], p)), 
+                    height, 
+                    "gold", 
+                    true
+                )
 
                 
-            //     const title_width = 40;
-            //     const tile=[
-            //         [0, 0, 0],
-            //         [title_width, 0, 0],
-            //         [title_width, title_width, 0],
-            //         [0, title_width, 0],
-            //         [0, 0, 0]
-            //     ]
+                const title_width = 40;
+                const tile=[
+                    [0, 0, 0],
+                    [title_width, 0, 0],
+                    [title_width, title_width, 0],
+                    [0, title_width, 0],
+                    [0, 0, 0]
+                ]
 
-            //     // for(let i=-20; i<20; i++){
-            //     //     for (let j=-20; j<20; j++){
-            //     //         canvas.drawPolygon(tile.map(t=>Project3D.addVectors([40*i, 40*j, 0], t)), 'white', false)
-            //     //     }
-            //     // }
+                // const n = 10;
+                // for(let i=-n; i<n; i++){
+                //     for (let j=-n; j<n; j++){
+                //         canvas.drawPolygon(tile.map(t=>Project3D.addVectors([40*i, 40*j, 0], t)), 'white', true)
+                //     }
+                // }
 
-            //     canvas.drawCone([lenght-20, width-20, height + 2 * top_thickness], [0, 0, 1], 40, 40, 40, "green", true);
-            //     return;
-            // }
+                // canvas.drawCone([lenght-20, width-20, height + 2 * top_thickness], [0, 0, 1], 40, 40, 40, "green", true);
+                // canvas.drawCone([lenght-100, width-75, 0], [0, 0, 1], 40, 40, 40, "green", true);
+                w.refresh();
+                return;
+            }
 
-            // // drawTable(canvasLeft);
-            // // drawTable(canvasRight);
+            // drawTable(w);
 
-            // // canvasLeft.drawLine(0, 0, 0, 400, 0, 0)
-            // // canvasLeft.drawLine(0, 0, 0, 0, 400, 0)
-            // // canvasLeft.drawLine(0, 0, 0, 0, 0, 400)
-            // canvasLeft.drawBlock([
-            //     [0, 0, 20],
-            //     [100, 0, 20],
-            //     [100, 100, 20],
-            //     [0, 100, 20],
-            //     [0, 0, 20]
-            // ], 30, 'gold', true)
-
-            // // canvasRight.drawLine(0, 0, 0, 400, 0, 0)
-            // // canvasRight.drawLine(0, 0, 0, 0, 400, 0)
-            // // canvasRight.drawLine(0, 0, 0, 0, 0, 400)
-            // canvasRight.drawBlock([
-            //     [0, 0, 20],
-            //     [100, 0, 20],
-            //     [100, 100, 20],
-            //     [0, 100, 20],
-            //     [0, 0, 20]
-            // ], 30, 'gold', true)
-
-            // // canvasLeft.drawBlock([
-            // //     [0, 0, 0],
-            // //     [10, 0, 0],
-            // //     [10, 10, 0],
-            // //     [0, 10, 0],
-            // //     [0, 0, 0]
-            // // ], 10, 'gold', true)
+            // drawTable(canvasLeft);
+            // drawTable(canvasRight);
 
             // function enableFullScreenMode(){
             //     let fullscreen = false;
@@ -868,64 +1025,6 @@
             //     }
             // }
             // enableFullScreenMode();
-
-            // const toDegrees = (rad)=> 360 * rad / (2 * Math.PI)
-            // let initialAlpha = null;
-
-            // const handleOrientation = (e)=>{
-            //     // console.log("e.beta:", e.beta);
-            //     // console.log("e.alpha:", e.gamma);
-            //     document.getElementById("orientation").innerHTML=`
-            //     <br>
-            //     e.beta: ${e.beta}
-            //     <br>
-            //     e.gamma: ${e.gamma}
-            //     <br>
-            //     e.alpha: ${e.alpha}
-            //     <br>
-            //     e.absolute: ${e.absolute}
-            //     `
-            //     if(e.beta && e.alpha){
-            //         if(initialAlpha==null){
-            //             initialAlpha = e.alpha;
-            //         }
-
-                    
-            //         const betaDelta  = ((e.gamma < 0) ? (e.gamma + 90 - canvasLeft.initBeta) : -(90-e.gamma) - canvasLeft.initBeta);
-            //         const alphaDelta = -(
-            //             (
-            //                 (e.gamma < 0) 
-            //                 ? e.alpha 
-            //                 : (e.alpha + (initialAlpha<=180 ? -180 : 180 ))
-            //             ) 
-            //             - initialAlpha
-            //         )
-
-            //         if(true){//alphaDelta>=5 || betaDelta>=5){
-            //             canvasLeft.changePerspectiveTo([
-            //                 canvasLeft.initAlpha + alphaDelta, 
-            //                 canvasLeft.initBeta  + betaDelta,
-            //             ]);
-
-            //             canvasRight.changePerspectiveTo([
-            //                 canvasRight.initAlpha + alphaDelta , 
-            //                 canvasRight.initBeta  + betaDelta,
-            //             ]);
-
-            //             document.getElementById("orientation").innerHTML += `
-            //                 <br>
-            //                 canvasLeft.alpha : ${canvasLeft.alpha }
-            //                 <br>
-            //                 canvasLeft.beta : ${canvasLeft.beta }
-            //                 <br>
-            //                 canvasLeft.currenFocusPoint: ${canvasLeft.currenFocusPoint.map(v=>v.toFixed(2)) }
-            //                 <br>
-            //                 canvasLeft.origin: ${canvasLeft.origin_x},${canvasLeft.origin_y} 
-            //             `
-            //         }                    
-            //     }
-            // }
-            // window.addEventListener("deviceorientation", handleOrientation, true);
 
             const handleOrientationChange = (e)=>{
                 world.handleOrientationChange(e);
