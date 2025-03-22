@@ -1010,21 +1010,21 @@
             // drawTable(canvasLeft);
             // drawTable(canvasRight);
 
-            // function enableFullScreenMode(){
-            //     let fullscreen = false;
-            //     document.getElementById("container").ontouchend = ()=>{ 
-            //         if(fullscreen) {
-            //             // document.getElementById("container").exitFullscreen(); 
-            //             fullscreen = false;
-            //         } else {
-            //             document.getElementById("container").requestFullscreen();
-            //             fullscreen = true;
-            //         }
+            function enableFullScreenMode(){
+                let fullscreen = false;
+                document.getElementById("container").ontouchend = ()=>{ 
+                    if(fullscreen) {
+                        // document.getElementById("container").exitFullscreen(); 
+                        fullscreen = false;
+                    } else {
+                        document.getElementById("container").requestFullscreen();
+                        fullscreen = true;
+                    }
 
-            //         document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
-            //     }
-            // }
-            // enableFullScreenMode();
+                    document.getElementById("container").onclick = ()=>document.getElementById("container").requestFullscreen();
+                }
+            }
+            enableFullScreenMode();
 
             const handleOrientationChange = (e)=>{
                 world.handleOrientationChange(e);
