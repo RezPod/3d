@@ -55,6 +55,10 @@
                 background-color:cornsilk;
             }
 
+            .suggestion:focus{
+                background-color:cornsilk;
+            }
+
             #download-scene-button{
                 display: inline-block;
                 font-weight: bold;
@@ -76,28 +80,40 @@
                 } catch(err) {
                     suggestionList = [];
                 }
+                suggestionList = [...suggestionList, ...Object.getOwnPropertyNames(globalThis)];
             }
 
-            window.onbeforeunload = (e) => window.localStorage.setItem("suggestionList", JSON.stringify(suggestionList))
+            window.onbeforeunload = (e) => window.localStorage.setItem("suggestionList", JSON.stringify(suggestionList.filter(v => !window.hasOwnProperty(v))))
             
 
             function addSuggestion(suggestion){
                 const suggestionElement = document.createElement("div");
                 suggestionElement.className = "suggestion"
                 suggestionElement.textContent = suggestion;
+                suggestionElement.tabIndex = 0;
                 suggestionElement.onclick = (e) => {
                     document.getElementById("code-input").value = e.target.textContent;
                     document.getElementById("suggestions-container").innerHTML="";
+                    document.getElementById("code-input").focus()
+                }
+                suggestionElement.onkeyup = (e) =>{
+                    if(e.key=="Enter"){
+                        e.target.onclick(e);
+                        document.getElementById("code-input").focus();
+                    } else if (e.key=="ArrowDown"){
+                        if(e.target.nextSibling)
+                            e.target.nextSibling.focus();
+                    } else if (e.key=="ArrowUp"){
+                        if(e.target.previousSibling)
+                            e.target.previousSibling.focus();
+                    }
                 }
                 document.getElementById("suggestions-container").appendChild(suggestionElement);
             }
 
-            function showSuggestions(e){
-                const suggestionContainer = document.getElementById("suggestions-container");
-                suggestionContainer.innerHTML = "";
-
-                const currentContent = document.getElementById("code-input").value + e.key;
-
+            function showSuggestions(){
+                document.getElementById("suggestions-container").innerHTML="";
+                const currentContent = document.getElementById("code-input").value;
                 for(let i=0; i<suggestionList.length; i++){
                     if(suggestionList[i].startsWith(currentContent)){
                         addSuggestion(suggestionList[i]);
@@ -105,8 +121,38 @@
                 }
             }
 
+            function handleKeyboardInput(e){
+                if(e.keyCode==13 && e.shiftKey){
+                    executeCode();
+                } else {
+                    if (e.key=="."){
+                        const currentContent = document.getElementById("code-input").value;
+                        const match = /[a-zA-Z]\w*\.$/.exec(currentContent);
+                        if(match){
+                            const varName = match[0].slice(0, match[0].length-1);
+                            try{
+                                if(eval(`${varName}!=null && ${varName}!=undefined`)){
+                                    document.getElementById("suggestions-container").innerHTML="";
+                                    eval(`[
+                                    ...Object.getOwnPropertyNames(${varName}), 
+                                    ...Object.getOwnPropertyNames(${varName}.__proto__)]
+                                    `).forEach((s)=>addSuggestion(currentContent + s));
+                                } else {
+                                    showSuggestions();
+                                }
+                            } catch(err){
+                                showSuggestions();
+                            }
+                        }
+                    } else {
+                        showSuggestions();
+                    }
+                }
+            }
+
             function executeCode(){
-                const codeInput = document.getElementById("code-input").value;
+                const codeInputElement = document.getElementById("code-input");
+                const codeInput = codeInputElement.value
                 console.log("input:-", codeInput);
                 try{
                     eval(codeInput);
@@ -116,7 +162,8 @@
                     } 
                 }catch(err){
                     console.log(err)
-                }               
+                }
+                codeInputElement.focus();              
             }
 
             console.stdlog = console.log.bind(console);
@@ -151,6 +198,7 @@
         <button 
             id="execute-code-button" 
             onclick="executeCode()"
+            onkeyup="eval('document.getElementById(`code-input`).focus()')"
             style="font-weight: bold;"
         >
             Execute Code
@@ -320,7 +368,18 @@
             
             window.addEventListener("deviceorientation", handleOrientationChange, true);
             
-            document.getElementById("code-input").onkeypress = showSuggestions;
+            document.getElementById("code-input").onkeyup = handleKeyboardInput;
+            document.getElementById("code-input").onkeydown = (e)=>{
+                if(e.key=="Tab"){
+                    const suggestionsContainer = document.getElementById("suggestions-container");
+                    document.getElementById("code-input").value = suggestionsContainer.firstElementChild.textContent;
+                    suggestionsContainer.innerHTML="";
+                    document.getElementById("code-input").focus();
+                } else if(e.key=="ArrowDown"){
+                    document.getElementById("suggestions-container").focus();
+                    document.getElementById("suggestions-container").firstChild.focus();
+                }
+            };
 
             document.getElementById("download-scene-button").onclick = (e)=>{
 
