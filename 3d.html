@@ -83,8 +83,16 @@
                 suggestionList = [...suggestionList, ...Object.getOwnPropertyNames(globalThis)];
             }
 
-            window.onbeforeunload = (e) => window.localStorage.setItem("suggestionList", JSON.stringify(suggestionList.filter(v => !window.hasOwnProperty(v))))
+            window.onbeforeunload = (e) => window.localStorage.setItem(
+                "suggestionList", 
+                JSON.stringify(
+                    [...(new Set(suggestionList.filter(v => !window.hasOwnProperty(v))))]
+                )
+            )
             
+            function clearSuggestions(){
+                document.getElementById("suggestions-container").innerHTML="";
+            }
 
             function addSuggestion(suggestion){
                 const suggestionElement = document.createElement("div");
@@ -112,7 +120,6 @@
             }
 
             function showSuggestions(){
-                document.getElementById("suggestions-container").innerHTML="";
                 const currentContent = document.getElementById("code-input").value;
                 for(let i=0; i<suggestionList.length; i++){
                     if(suggestionList[i].startsWith(currentContent)){
@@ -125,6 +132,7 @@
                 if(e.keyCode==13 && e.shiftKey){
                     executeCode();
                 } else {
+                    clearSuggestions();
                     if (e.key=="."){
                         const currentContent = document.getElementById("code-input").value;
                         const match = /[a-zA-Z]\w*\.$/.exec(currentContent);
@@ -132,7 +140,6 @@
                             const varName = match[0].slice(0, match[0].length-1);
                             try{
                                 if(eval(`${varName}!=null && ${varName}!=undefined`)){
-                                    document.getElementById("suggestions-container").innerHTML="";
                                     eval(`[
                                     ...Object.getOwnPropertyNames(${varName}), 
                                     ...Object.getOwnPropertyNames(${varName}.__proto__)]
@@ -141,18 +148,17 @@
                                     showSuggestions();
                                 }
                             } catch(err){
-                                showSuggestions();
+
                             }
                         }
-                    } else {
-                        showSuggestions();
                     }
+                    showSuggestions();
                 }
             }
 
             function executeCode(){
                 const codeInputElement = document.getElementById("code-input");
-                const codeInput = codeInputElement.value
+                const codeInput = codeInputElement.value.trim();
                 console.log("input:-", codeInput);
                 try{
                     eval(codeInput);
