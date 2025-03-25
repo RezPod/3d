@@ -75,7 +75,8 @@
             window.onload = (e)=>{
                 console.log("onload.....filling suggestions...");
                 try{
-                    suggestionList =  JSON.parse(window.localStorage.getItem("suggestionList"));
+                    const existingSuggestions = JSON.parse(window.localStorage.getItem("suggestionList"));
+                    suggestionList =  existingSuggestions ? existingSuggestions : [];
                 } catch(err) {
                     suggestionList = [];
                 }
