@@ -70,13 +70,12 @@
         </style>
         <script src="./3d.js"></script>
         <script>
-            let suggestionList ;
+            let suggestionList = [];
 
             window.onload = (e)=>{
                 console.log("onload.....filling suggestions...");
-                suggestionList = window.localStorage.getItem("suggestionList");
                 try{
-                    suggestionList =  JSON.parse(suggestionList);
+                    suggestionList =  JSON.parse(window.localStorage.getItem("suggestionList"));
                 } catch(err) {
                     suggestionList = [];
                 }
