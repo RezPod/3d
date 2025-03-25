@@ -69,8 +69,13 @@
             let suggestionList ;
 
             window.onload = (e)=>{
+                console.log("onload.....filling suggestions...");
                 suggestionList = window.localStorage.getItem("suggestionList");
-                suggestionList = (suggestionList  && suggestionList != '"undefined"') ? JSON.parse(suggestionList) : [];
+                try{
+                    suggestionList =  JSON.parse(suggestionList);
+                } catch(err) {
+                    suggestionList = [];
+                }
             }
 
             window.onbeforeunload = (e) => window.localStorage.setItem("suggestionList", JSON.stringify(suggestionList))
