@@ -146,10 +146,10 @@
                     // }
 
 
-w.shapes.polygons.forEach(
-    (v, i) => { 
-        console.log(`-----------${i}----------`); 
-        v.coords.map(c => console.log(c.map(x => x.toFixed(2)))); 
-        console.log("****************************************") 
-    }
-)
+// w.shapes.polygons.forEach(
+//     (v, i) => { 
+//         console.log(`-----------${i}----------`); 
+//         v.coords.map(c => console.log(c.map(x => x.toFixed(2)))); 
+//         console.log("****************************************") 
+//     }
+// )

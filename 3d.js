@@ -294,6 +294,7 @@ class Canvas3D{
         this.canvasElement.className = "canvas-3d";
         this.canvasElement.width = this.width;
         this.canvasElement.height = this.height;
+        this.canvasElement.style.backgroundColor = "skyblue";
         this.containerElement.appendChild(this.canvasElement);
 
         this.statusElement = document.createElement("div");
@@ -340,7 +341,8 @@ class Canvas3D{
         this.project3D = new Project3D(this.perspective);
         this.shapes = {
             lines:[],
-            polygons: []
+            polygons: [],
+            images: []
         };
         this.displayPerspective();
 
@@ -359,35 +361,47 @@ class Canvas3D{
         });
     }
 
+    setPixel(x, y, z, [r, g, b, a]){
+        const imageData =  this.ctx.createImageData(1, 1);
+        imageData.data[0] = r;
+        imageData.data[1] = g;
+        imageData.data[2] = b;
+        imageData.data[3] = a;
+        this.ctx.putImageData(imageData, ...this.toCoords( x, y, z));
+    }
+
     loadImage(filePath, x, y, z){
         const base_image = new Image();
         base_image.src = filePath;
+        const startTime = Date.now();
+
         base_image.onload = ()=>{
-            this.ctx.drawImage(base_image, 100, 100);
-            const width = 10;//base_image.width-11;
-            const height = 10;//base_image.height-11;
-            const k = 10;
+            this.ctx.drawImage(base_image, 0, 0);
+            const width = base_image.width-11;
+            const height = base_image.height-11;
+
             const imageData = this.ctx.getImageData(
-                100+10, 100+10, 
+                0+10, 0+10, 
                 width, height
             );
 
             for(let i=0; i<height; i++){
                 for(let j=0; j<width; j++){
-                    let [r, g, b, a] = imageData.data.slice(i*width + j, i*width + j + 4);
-                    a = a / 255;
+                    let [r, g, b, a] = imageData.data.slice(4*i*width + 4*j, 4*i*width + 4*j + 4);
+                    // a = a / 100;
                     const color = `rgba(${r}, ${g}, ${b}, ${a})`;
-                    const coords = [
-                        [x+k*j,   y, z-k*i], 
-                        [x+k*(j+1), y, z-k*i], 
-                        [x+k*(j+1), y, z-k*(i+1)],
-                        [x+k*j,   y,  z-k*(i+1)]
-                    ]
-                    this.drawPolygon(coords, color, 0, this.shapeId);
+                    const p = Project3D.addVectors([x, y, z], [j, 0, height-i])
+                    this.setPixel(...p, [r, g, b, a]);
                 }
             }
+            this.ctx.clearRect(0, 0, 10+width, 10+height);
+            // console.log(`time-taken: ${Date.now() - startTime}ms`)
             this.shapeCount += 1;
-            this.refresh();
+            this.shapes.images.append({
+                src:filePath,
+                bottomLeftCornerPos: [x, y, z],
+            })
+            // this.refresh();
         }
     }
 
@@ -721,8 +735,8 @@ class Canvas3D{
         if(
             beta > 90 
             || beta < -90 
-            || alpha > 225 
-            || alpha < -135
+            // || alpha > 225 
+            // || alpha < -135
         ) return;
 
         // if(
@@ -775,7 +789,7 @@ class Canvas3D{
         this.perspective = perspective;
         this.project3D = new Project3D(this.perspective);
         
-        // this.displayPerspective();
+        this.displayPerspective();
 
         this.refresh();
     }
