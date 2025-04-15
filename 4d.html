@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            .canvas-3d-container{
+                display: inline-block;
+            }
+            .canvas-3d{
+                background-color: skyblue;
+                display: inline-block;
+                /* border: 1px solid black; */
+            }
+            .canvas-3d-status{
+                display: none;
+                position: relative;
+                bottom: 20px;
+                left: 20px;
+                z-index: 1;
+                font-weight: bold;
+            }
+
+            body{
+                background-color: rgba(255, 255, 255, 0.749);
+                padding: 0%;
+            }
+            #code-input{
+                font-size: x-large;
+            }
+
+            #code-output{
+                font-size: small;
+            }
+
+            #execute-code-button{
+                display: inline-block;
+                padding: 1%;
+                margin: 1%;
+                vertical-align: top;
+            }
+
+            #suggestions-container{
+                display: block;
+                position: absolute;
+                top: 75px;
+                left: 10px;
+                width: 400px;
+                max-height: 300px;
+                overflow-x: hidden;
+                overflow-y: auto;
+                z-index: 1;
+                background-color: aliceblue;
+            }
+
+            .suggestion{
+                padding: 5px;
+                border-bottom: 1px solid gainsboro;
+            }
+
+            .suggestion:hover{
+                background-color:cornsilk;
+            }
+
+            .suggestion:focus{
+                background-color:cornsilk;
+            }
+
+            #download-scene-button{
+                display: inline-block;
+                font-weight: bold;
+                padding: 1%;
+                margin: 1%;
+                vertical-align: top;
+            }
+
+        </style>
+        <script src="./3d.js"></script>
+    </head>
+    <body>
+        <script>
+            const cameraPosition = [50, 50, 50];
+            const xyzCanvas = new Canvas3D(document.body, "xyz", 600, 600);
+
+            const yzwCanvas = new Canvas3D(document.body, "yzw", 600, 600, cameraPosition);
+            // yzwCanvas.changePerspectiveTo([90, 0]);
+            const xywCanvas = new Canvas3D(document.body, "xyw", 600, 600, cameraPosition);
+            // xywCanvas.changePerspectiveTo([90, 0]);
+            const xzwCanvas = new Canvas3D(document.body, "xzw", 600, 600, cameraPosition);
+            // xzwCanvas.changePerspectiveTo([180, 0]);
+
+            // xyzCanvas.loadScene("scenes/car.json");
+            const cubeBase = [
+                [0, 0, 0], 
+                [100, 0, 0], 
+                [100, 100, 0], 
+                [0, 100, 0], 
+                [0, 0, 0]
+            ]
+            
+            xyzCanvas.drawBlock(cubeBase, 100, 'gold', 1);
+
+            yzwCanvas.drawAxis(200)
+            // yzwCanvas.drawBlock(cubeBase, 100, 'gold', 1);
+
+            xywCanvas.drawAxis(200)
+            // xywCanvas.drawBlock(cubeBase, 100, 'gold', 1);
+
+            xzwCanvas.drawAxis(200)
+            // xzwCanvas.drawBlock(cubeBase, 100, 'gold', 1);
+
+            const toDegrees = (rad) => 360 * rad / (2*Math.PI);
+            const toRadiuns = (deg) => (2*Math.PI) * deg/360;
+
+            // let rotatedBottomFacesCoords = xyzCanvas
+            //     .shapes
+            //     .polygons[0]
+            //     .coords
+
+            // let rotatedTopFacesCoords = xyzCanvas
+            //     .shapes
+            //     .polygons[xyzCanvas.shapes.polygons.length-1]
+            //     .coords
+
+            let rotatedCoords = xyzCanvas
+            .shapes
+            .polygons
+            .map(p=>p.coords);
+
+            xyzCanvas.canvasElement.onmousemove = (e)=>{
+                const aplha0 = xyzCanvas.alpha;
+                const beta0 = xyzCanvas.beta;
+
+                xyzCanvas.onMouseMove(e);
+
+                const alphaDelta =  toRadiuns(-(xyzCanvas.alpha - aplha0));
+                const betaDelta = toRadiuns(-(xyzCanvas.beta - beta0));
+                if(!(alphaDelta || betaDelta)){
+                    return;
+                }
+
+                function rotate(x, y, z, alphaDelta, betaDelta){
+                    let rXYZ = Math.hypot(x, y, z);
+                    if(rXYZ===0){
+                        return [x, y, z];
+                    }
+
+                    let rXY  = Math.hypot(x, y);
+
+                    let alpha;
+                    if(rXY===0){
+                        alpha = 0;
+                    } else {
+                        alpha = Math.asin(y/rXY);
+                    }
+
+                    let beta = Math.asin(z/rXYZ);
+
+                    return [
+                        rXYZ*Math.cos(beta+betaDelta)*Math.cos(alpha+alphaDelta),
+                        rXYZ*Math.cos(beta+betaDelta)*Math.sin(alpha+alphaDelta),
+                        rXYZ*Math.sin(beta+betaDelta)
+                    ]
+                }
+
+                
+
+                rotatedCoords = rotatedCoords.map(
+                    p=>p.map(
+                        (c)=>rotate(...c, alphaDelta, betaDelta)
+                    )
+                );
+
+                yzwCanvas.clear();
+                // xywCanvas.clear();
+                // xzwCanvas.clear();
+
+                rotatedCoords.forEach(p => {
+                    yzwCanvas.drawPolygon(
+                        p.map(c=>[c[1], c[2], 0]), 
+                        "gold", 
+                        1, 
+                        0
+                    );
+
+                    yzwCanvas.drawPolygon(
+                        p.map(c=>[c[1], c[2], 100]), 
+                        "gold", 
+                        1, 
+                        0
+                    );
+
+                    yzwCanvas.drawPolygon(
+                        p.map(c=>[c[0], c[1], 0]), 
+                        "gold", 
+                        1, 
+                        0
+                    )
+
+                    yzwCanvas.drawPolygon(
+                        p.map(c=>[c[0], c[1], 100]), 
+                        "gold", 
+                        1, 
+                        0
+                    )
+
+                    yzwCanvas.drawPolygon(
+                        p.map(c=>[c[0], c[2], 0]), 
+                        "gold", 
+                        1, 
+                        0
+                    )
+
+                    yzwCanvas.drawPolygon(
+                        p.map(c=>[c[0], c[2], 100]), 
+                        "gold", 
+                        1, 
+                        0
+                    )
+                    
+                });
+
+                yzwCanvas.refresh();
+                // xywCanvas.refresh();
+                // xzwCanvas.refresh();
+
+                // rotatedBottomFacesCoords = rotatedBottomFacesCoords
+                // .map((c)=>rotate(...c, alphaDelta, betaDelta))
+
+                // rotatedTopFacesCoords = rotatedTopFacesCoords
+                // .map((c)=>rotate(...c, alphaDelta, betaDelta))
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedBottomFacesCoords.map(c=>[c[1], c[2], 0]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedTopFacesCoords.map(c=>[c[1], c[2], 0]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedBottomFacesCoords.map(c=>[c[1], c[2], 100]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedTopFacesCoords.map(c=>[c[1], c[2], 100]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+
+                // xywCanvas.clear();
+                // yzwCanvas.drawPolygon(
+                //     rotatedBottomFacesCoords.map(c=>[c[0], c[1], 0]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedTopFacesCoords.map(c=>[c[0], c[1], 0]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedBottomFacesCoords.map(c=>[c[0], c[1], 100]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedTopFacesCoords.map(c=>[c[0], c[1], 100]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+
+                // xzwCanvas.clear();
+                // yzwCanvas.drawPolygon(
+                //     rotatedBottomFacesCoords.map(c=>[c[0], c[2], 0]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedTopFacesCoords.map(c=>[c[0], c[2], 0]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedBottomFacesCoords.map(c=>[c[0], c[2], 100]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.drawPolygon(
+                //     rotatedTopFacesCoords.map(c=>[c[0], c[2], 100]), 
+                //     "gold", 
+                //     1, 
+                //     0
+                // )
+
+                // yzwCanvas.refresh();
+            }
+
+            // xyzCanvas.canvasElement.onmousemove = (e)=>{
+            //     xyzCanvas.onMouseMove(e);
+
+            //     const alphaXYZ = Canvas3D.toRadians(xyzCanvas.alpha);
+            //     const betaXYZ = Canvas3D.toRadians(xyzCanvas.beta);
+            //     const [cx, cy, cz] = xyzCanvas.cameraPosition;
+
+            //     const alphaYZ = toDegrees(
+            //         Math.atan(
+            //             Math.sin(
+            //                 betaXYZ
+            //             )/(
+            //                 Math.cos(betaXYZ) 
+            //                 * Math.sin(alphaXYZ)
+            //             )
+            //         )
+            //     )
+            //     console.log("alphaYZ:", alphaYZ);
+
+            //     yzwCanvas.changePerspectiveTo([
+            //         alphaYZ,
+            //         yzwCanvas.beta
+            //     ], [cy, cz, yzwCanvas.cameraPosition[2]])
+
+            //     xywCanvas.changePerspectiveTo([
+            //         xyzCanvas.alpha,
+            //         xywCanvas.beta
+            //     ], [cx, cy, xywCanvas.cameraPosition[2]])
+
+            //     const alphaXZ = toDegrees(
+            //         Math.atan(
+            //             Math.sin(
+            //                 betaXYZ
+            //             )/(
+            //                 Math.cos(betaXYZ) 
+            //                 * Math.cos(alphaXYZ)
+            //             )
+            //         )
+            //     )
+            //     console.log("alphaXZ:", alphaXZ);
+
+            //     xzwCanvas.changePerspectiveTo([
+            //         alphaXZ,
+            //         xzwCanvas.beta
+            //     ], [cx, cz, xzwCanvas.cameraPosition[2]])
+            // }
+
+        </script>
+    </body>
+</html>

@@ -490,6 +490,12 @@ class Canvas3D{
         return polygon;
     }
 
+    removeShape(shapeId){
+        // this.shapes.polygons.push({coords, fillColor, drawBorders, shapeId})
+        this.shapes.polygons = this.shapes.polygons.filter(p=>p.shapeId!=shapeId);
+        this.refresh();
+    }
+
     showPerspectiveIndicator(){
         const s = 40;
         const h = 40;
@@ -874,7 +880,7 @@ class Canvas3D{
                     this.cameraPosition, 
                     Project3D.scalerProd(
                         1/2, 
-                        w.project3D.get3DCoords(e.movementX, -e.movementY)
+                        this.project3D.get3DCoords(e.movementX, -e.movementY)
                     )
                 )
             );
