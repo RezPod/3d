@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <style>
+            #state{
+                position: absolute;
+                z-index: 1;
+            }
+            .canvas-3d-container{
+                display: inline-block;
+                flex:auto;
+                flex-direction: row;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="root">
+            <div id="state">
+            </div>
+        </div>
+
+        <script src="3d.js"></script>
+        <script src="solid.js"></script>
+
+        <script>
+            const cuboid = [
+                [0, 0, 0], 
+                [200, 0, 0], 
+                [200, 100, 0], 
+                [0, 100, 0], 
+                // [0, 0, 0],
+                [0, 0, 100], 
+                [200, 0, 100], 
+                [200, 100, 100], 
+                [0, 100, 100], 
+                // [0, 0, 100]
+                // [50, 50, 50]
+            ]
+
+            const pyramid4 = [
+                [0, 0, 0],
+                [100, 0, 0],
+                [100, 100, 0],
+                [0, 100, 0],
+                [50, 50, 100]
+            ]
+
+            const pyramid3 = [
+                [0, 0, 0],
+                [100, 0, 0],
+                [0, 100, 0],
+                [50, 50, 100]
+            ]
+
+            const pyramid5 = [
+                [0, 0, 0],
+                [100, 0, 0],
+                [150, 75, 0],
+                [75, 150, 0],
+                [0, 100, 0],
+
+                [50, 50, 100]
+            ]
+
+            const prism3 = [
+                [0, 0, 0],
+                [100, 0, 0],
+                [0, 100, 0],
+
+                [0, 0, 100],
+                [100, 0, 100],
+                [0, 100, 100],
+            ]
+
+            const prismPyramid = [
+                [0, 0, 0], 
+                [100, 0, 0], 
+                [100, 100, 0], 
+                [0, 100, 0], 
+                // [0, 0, 0],
+                [25, 25, 100], 
+                [75, 25, 100], 
+                [75, 75, 100], 
+                [25, 75, 100], 
+                // [0, 0, 100]
+            ]
+
+            const prismPyramidTilted = [
+                [0, 0, 0], 
+                [100, 0, 0], 
+                [100, 100, 0], 
+                [0, 100, 0], 
+                // [0, 0, 0],
+                [25, 25, 100], 
+                [125, 25, 100], 
+                [125, 125, 100], 
+                [25, 125, 100], 
+                // [0, 0, 100]
+            ]
+
+            const prism5 = [
+                [0, 0, 0], 
+                [100, 0, 0], 
+                [125, 75, 0], 
+                [75, 125, 0], 
+                [0, 100, 0],
+                
+                [0, 0, 100], 
+                [100, 0, 100], 
+                [125, 75, 100], 
+                [75, 125, 100], 
+                [0, 100, 100]
+            ]
+
+            const vertecies = [
+                [0, 0, 0], 
+                [100, 0, 0], 
+                [100, 100, 0],
+                [0, 100, 0],
+
+                // [50, 50, 100],
+                [0, 0, 100],
+                [100, 0, 100],
+                [100, 100, 100], 
+                [0, 100, 100],
+
+                // [50, 100, 20],
+                // [50, 0, 20],
+
+                // [50, 50, 150],
+                // [0, 50, 100]
+            ]
+            
+            function color(r, g, b, a){
+                return "rgba(" 
+                + [r, g, b, a]
+                .join(",")
+                + ")"
+            }
+
+            const w = new Canvas3D(document.getElementById("root"), "simulation", 900);
+            // w.drawAxis(400);
+            w.changePerspectiveTo([90, 0], [200, 200, 200])
+
+            function drawSolid(solid, convexHull, shapeId, color){
+                for(let f of convexHull.faces){
+                    w.drawPolygon(
+                        f.map(i=>solid[i]),
+                        color ? color : "gold", 
+                        1, 
+                        shapeId
+                    )
+                }
+            }
+            
+
+            let solid1 = new Solid(vertecies);
+            const convexHull = solid1.convexHull();
+            console.log(convexHull);
+
+            solid1.scale(0.2);
+            solid1.moveTo([10, 0, 10])
+
+            const stateCanvas = new Canvas3D(document.getElementById("root"), "state", 600);
+            stateCanvas.drawAxis(5000);
+            stateCanvas.changePerspectiveTo([90, 0], [200, 200, 200])
+
+            class LineGrap extends Path2D{
+                constructor(context, color="black", data=[]){
+                    super();
+                    this.color = color;
+                    this.context = context;
+                    this.moveTo(...stateCanvas.toCoords(0, 0, 0));
+                    data.forEach(p=>this.add(...p));
+                }
+                add(x, y){
+                    this.lineTo(...stateCanvas.toCoords(x, 0, y));
+                    stateCanvas.ctx.strokeStyle = this.color;
+                    this.context.stroke(this);
+                }
+
+                show(){
+                    stateCanvas.ctx.strokeStyle = this.color;
+                    this.context.stroke(this);
+                    stateCanvas.ctx.strokeStyle = "black";
+                }
+
+                move(dx, dy){
+                    let path = new LineGrap(this.context, this.color);
+                    let m = new DOMMatrix();
+                    m.a = 1;
+                    m.b = 0;
+                    m.c = 0;
+                    m.d = 1;
+                    m.e = dx;
+                    m.f = 0;
+                    path.addPath(this, m);
+                    path.show();
+                    return path;
+                }
+            }
+
+            let energyPlot = new LineGrap(stateCanvas.ctx, "red");
+            let elivationPlot = new LineGrap(stateCanvas.ctx, "green");
+            let speedPlot = new LineGrap(stateCanvas.ctx, "blue");
+            let accelerationPlot = new LineGrap(stateCanvas.ctx, "yellow");
+            let plots = [elivationPlot, speedPlot, accelerationPlot, energyPlot];
+            // const energyPlot = new LineGrap(context, "black");
+
+            async function updateState(t, r, v, a, dt, dr, ptime){
+                document.getElementById("state").innerHTML = `
+                t: ${t.toFixed(2)} sec
+                <br>
+                r: ${r.map(c=>c.toFixed(2)).join(", ")} 
+                <br>
+                v: ${v.map(c=>c.toFixed(2)).join(", ")} <span style="color:blue">[${v.magnitude().toFixed(2)} m/s]</span>
+                <br>
+                a: ${a.map(c=>c.toFixed(2)).join(", ")} <span style="color:yellow">[${a.magnitude().toFixed(2)} m/s^2]</span>
+                <br>
+                dt: ${dt.toFixed(3)} sec
+                <br>
+                dr: ${dr.map(c=>c.toFixed(2)).join(", ")} [${dr.magnitude().toFixed(2)} m]
+                <br>
+                KE: ${(v.magnitude()**2/2).toFixed(2)} Joules
+                <br>
+                PE: ${(10*r[2]).toFixed(2)} Joules
+                <br>
+                Total Energy: <span style="color:red"> ${(v.magnitude()**2/2+10*r[2]).toFixed(2)} Joules </span>
+                <br>
+                Process Time: ${ptime} ms
+                `
+                const dx = 20*dt;
+                const x = 20*t;
+
+                const TE = v.magnitude()**2/2+10*r[2];
+                plots[3].add(x, Math.max(10*Math.log2(TE), 0));
+                plots[0].add(x, r[2]);
+                plots[1].add(x, v.magnitude());
+                plots[2].add(x, a.magnitude());
+
+                if(x > 400){
+                    // energyPlot = energyPlot.move(-dx);
+                    // elivationPlot = elivationPlot.move(-dx);
+
+                    
+                    stateCanvas.changePerspectiveTo(
+                        [stateCanvas.alpha, stateCanvas.beta], 
+                        new Vector(...stateCanvas.cameraPosition).add([dx, 0, 0])
+                    );
+                    plots = plots.map(p=>p.move(-dx))
+                    
+                    // plots.forEach(p=>p.show());
+                    // energyPlot.show();
+                    // elivationPlot.show();
+                }
+                
+            }
+
+            async function reDrawSolid(shapeId, solid, r, v, a){
+
+                w.removeShape(shapeId);
+
+                // const r = solid.center();
+
+                for(let f of convexHull.faces){
+                    w.drawPolygon(
+                        f.map(i=>solid[i]),
+                        color(255, 215, 0, 0.5), 
+                        1, 
+                        shapeId
+                    )
+                }
+
+                w.drawLine(...r, ...r.add(v.scale(2)), 0, "yellow");
+                w.drawLine(...r, ...r.add(a.scale(2)), 0, "blue");
+                
+                w.refresh();
+            }
+
+        
+            const rad = (deg)=>2*Math.PI*(deg/360);
+
+            const angle = rad(0);
+
+            const drag = 0.3;
+            const windForce = new Vector(0, 0, 0);
+            const g = new Vector(0, 0, -10);
+
+            const solid2 = new Solid(vertecies);
+            solid2.scale(4.2);
+            solid2.moveTo([200, 0, 200]);
+            drawSolid(solid2, convexHull, 1, color(0, 0, 124, drag));
+            const r2 = solid2.center();
+
+            const q1 = 80e-3;
+            const q2 = 3e-3*0;
+            const k  = 8.99e9;
+            const eC = k*q1*q2;
+            const orbitRadius = 100
+
+            const u = new Vector(
+                    Math.cos(angle),
+                    0,   
+                    Math.sin(angle)
+            ).scale(
+                // Math.abs(1*eC/orbitRadius)**0.5
+                60
+            );
+
+            let acceleration = (t, v, r) => {
+                const r12 = r.subtract(r2);
+                const electricForce = r12.unit().scale(
+                    eC/(r12.magnitude()**2)
+                )
+
+                return g
+                .add(electricForce)
+                .add(windForce)
+                .add(
+                    v.scale(-drag)
+                );
+            };
+
+            function playBang() {
+                (new Audio("/bang.mp3")).play();
+            }
+
+            const bounderies = [{
+                r0:new Vector(0, 0, 0), 
+                n:new Vector(0, 0, 1)
+            },{
+                r0:new Vector(400, 0, 0),
+                n: new Vector(-1, 0, 0)
+            },{
+                r0:new Vector(0, 0, 0),
+                n: new Vector(1, 0, 0)
+            },{
+                r0:new Vector(0, 0, 400),
+                n: new Vector(0, 0, -1)
+            },{
+                r0:new Vector(0, 100, 0),
+                n: new Vector(0, -1, 0)
+            },{
+                r0:new Vector(0, -100, 0),
+                n: new Vector(0, 1, 0)
+            },]
+
+            solid1.live(
+                new Vector(0, 0, 0),
+                u, 
+                acceleration,
+                (s, r, v, a) => reDrawSolid(0, s, r, v, a),
+                updateState,
+                bounderies,
+                (t, r, v, b)=>(new Audio("/bang.mp3")).play()
+            )
+        </script>
+    </body>
+</html>

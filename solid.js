@@ -45,7 +45,9 @@ class Vector extends Array{
     proj(on){
         if(this.isZero() || on,this.isZero()) return null;
 
-        return this.subtract(on.scale(this.dot(on.unit())));
+        on = on.unit();
+
+        return on.scale(this.dot(on));
     }
 
     equate(vector){
@@ -131,6 +133,7 @@ function areCoplaner(points){
 
     return true;
 }
+
 
 // const toDegrees = (rad) => 360 * rad / (2 * Math.PI);
 
@@ -311,7 +314,11 @@ function areCoplaner(points){
 // console.log(uniqueFaces);
 
 class Solid extends Array{
-    constructor(vertecies){
+    constructor(
+        vertecies, 
+        initialVelocity = Vector.zero(), 
+        acceleration = (t, v, r)=> Vector.zero()
+    ){
         super(...vertecies.map(p => new Vector(...p)));
     }
 
@@ -319,6 +326,116 @@ class Solid extends Array{
         for(let i in this){
             this[i] = this[i].add(by);
         }
+    }
+
+    center(){
+        return this.reduce(
+            (s, p)=>{s=s.add(p); return s}, Vector.zero()
+        ).scale(1/this.length);
+    }
+
+    moveTo(location){
+        const c = this.center();
+        location = new Vector(...location);
+        for(let i in this){
+            this[i] = location.add(this[i].subtract(c));
+        }
+    }
+
+    scale(by){
+        const c = this.center();
+        for(let i in this){
+            this[i] = c.add(this[i].subtract(c).scale(by));
+        }
+    }
+
+    live(
+        r = null,
+        u = Vector.zero(), 
+        a = (t, v, r)=>Vector(), 
+        onMotion=()=>null, 
+        onStateChange=()=>null,
+        bounderies=[],
+        onCollision=()=>null
+    ){
+        const t0 = Date.now()/1000;
+        r = r ? r : this.center();
+        this.moveTo(r);
+
+        const motion = (t1, r1, v1)=>{
+            let t = Date.now()/1000;
+            let deltaT = t-t1;
+            // let r = this.center(); 
+
+            let a_inst = acceleration(t-t0, v1, r1);
+
+            let v = v1.add(
+                a_inst.scale(deltaT)
+            ) 
+            // const deltaR = v.scale(deltaT);
+            let r;
+            if(v.magnitude() > 0){
+
+                for(let b of bounderies){
+                    // (r-r0).n = 0   -> {r lies on the plane}
+                    // (r-r0).n >< 0  -> {distance of r from the plane}
+                    const np = v.proj(b.n);
+    
+                    if(r1.subtract(b.r0).dot(b.n)==0){
+                        if(v1.proj(b.n).magnitude()<1 || np.magnitude()<1){
+                            v = v.subtract(np);
+                        }
+                        continue;
+                    }
+    
+                    r = r1.add(v.scale(deltaT));
+                    const c = r.subtract(b.r0).dot(b.n);
+    
+                    if(c<0){
+                        if(np.dot(b.n) < 0){
+                            v = v.add(np.scale(-2));
+    
+                            // r_final = r + (r_distance_from_boundery_plan/(n.v_unit))v_unit
+                            const v_unit = v.unit()
+                            r = r.add(
+                                v_unit.scale(
+                                    Math.abs(c)
+                                    /v_unit.dot(b.n)
+                                )
+                            )
+                            // this.moveTo(r);
+                            // onCollision(t-t0, r, v, b)
+
+                            if(np.magnitude()<1){
+                                v = v.subtract(np);
+                            }else{
+                                onCollision(t-t0, r, v, b);
+                            }
+                            break;
+                        }                    
+                    }
+                }
+    
+                if(!r.equate(r1)){
+                    this.moveTo(r);
+                    onMotion(this, r, v, a_inst);
+                }
+
+            }
+
+            onStateChange(
+                t-t0, 
+                this.center(), 
+                v, 
+                a_inst,
+                deltaT,
+                r.subtract(r1),
+                Date.now()-t*1000
+            );
+            setTimeout(()=>motion(t, r, v), 17-(Date.now()-t*1000))
+        }
+
+        motion(t0, r, u);
     }
 
     convexHull(){

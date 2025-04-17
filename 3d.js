@@ -454,12 +454,15 @@ class Canvas3D{
         return this.project3D.get3DCoords(x - this.origin_x, this.origin_y - y);
     }
 
-    drawLine(x1, y1, z1, x2, y2, z2){
-        this.ctx.moveTo(...this.toCoords(x1, y1, z1));
-        this.ctx.lineTo(...this.toCoords(x2, y2, z2));
-        this.ctx.stroke();
+    drawLine(x1, y1, z1, x2, y2, z2, shapeId, color="black"){
 
-        this.shapes.lines.push([x1, y1, z1, x2, y2, z2]);
+        const line = new Path2D();
+        line.moveTo(...this.toCoords(x1, y1, z1));
+        line.lineTo(...this.toCoords(x2, y2, z2));
+        this.ctx.strokeStyle = color;
+        this.ctx.stroke(line);
+        this.ctx.strokeStyle = "black";
+        this.shapes.lines.push({coords:[x1, y1, z1, x2, y2, z2], shapeId:shapeId, color:color});
     }
 
     drawAxis(length){
@@ -493,6 +496,7 @@ class Canvas3D{
     removeShape(shapeId){
         // this.shapes.polygons.push({coords, fillColor, drawBorders, shapeId})
         this.shapes.polygons = this.shapes.polygons.filter(p=>p.shapeId!=shapeId);
+        this.shapes.lines = this.shapes.lines.filter(l=>l.shapeId!=shapeId);
         this.refresh();
     }
 
@@ -808,9 +812,9 @@ class Canvas3D{
         this.shapes.polygons = [];
 
         this.ctx.reset();
-        lines.forEach(v => this.drawLine(...v));
+        lines.forEach(v => this.drawLine(...v.coords, v.shapeId, v.color)); 
         
-        const start_time = Date.now();
+        // const start_time = Date.now();
 
         Project3D
         .getDrawingOrder(polygons, this.perspective)
