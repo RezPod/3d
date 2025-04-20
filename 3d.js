@@ -406,6 +406,7 @@ class Canvas3D{
     }
 
     displayPerspective(cur_x, cur_y){
+        return;
         // const currentLocation = this.project3D.get3DCoords(this.initX, this.initY);
         this.statusElement.innerHTML = `
         <br>
@@ -472,25 +473,25 @@ class Canvas3D{
     }
 
     drawPolygon(coords, fillColor, drawBorders, shapeId){
-        const polygon = new Path2D();
-        polygon.moveTo(...this.toCoords(...coords[0]))
+        const path = new Path2D();
+        path.moveTo(...this.toCoords(...coords[0]))
         coords.slice(1).forEach(c=>{
-            polygon.lineTo(...this.toCoords(...c));
+            path.lineTo(...this.toCoords(...c));
         });
-        polygon.closePath();
+        path.closePath();
 
         if(fillColor){
             this.ctx.fillStyle=fillColor;
-            this.ctx.fill(polygon);
+            this.ctx.fill(path);
         }
 
         if(drawBorders){
-            this.ctx.stroke(polygon);
+            this.ctx.stroke(path);
         }
         
         this.shapes.polygons.push({coords, fillColor, drawBorders, shapeId});
 
-        return polygon;
+        return path;
     }
 
     removeShape(shapeId){
@@ -804,7 +805,7 @@ class Canvas3D{
         this.refresh();
     }
 
-    refresh(){
+    async refresh(){
         const lines = [...this.shapes.lines];
         this.shapes.lines = [];
 
@@ -816,16 +817,46 @@ class Canvas3D{
         
         // const start_time = Date.now();
 
-        Project3D
-        .getDrawingOrder(polygons, this.perspective)
-        .forEach(
-            p=>this.drawPolygon(
+        const cp = new Vector(...this.cameraPosition);
+        const persp = new Vector(...this.perspective);
+
+        const minDs = polygons.map(
+            p=>p.coords.map(
+                c=>new Vector(...c)
+            ).reduce(
+                (minD, v)=> {
+                    const d = v.subtract(cp).proj(persp).magnitude()
+                    if(d < minD)
+                        minD = d;
+                    return minD
+                }, Infinity
+            )
+        )
+
+        const order =  Object.keys(polygons).sort(
+            (a, b) => minDs[b]-minDs[a]
+        )
+
+        for(let i of order){
+            const p = polygons[i];
+            this.drawPolygon(
                 p.coords, 
                 p.fillColor, 
                 p.drawBorders, 
                 p.shapeId
             )
-        )
+        }
+
+        // Project3D
+        // .getDrawingOrder(polygons, this.perspective)
+        // .forEach(
+        //     p=>this.drawPolygon(
+        //         p.coords, 
+        //         p.fillColor, 
+        //         p.drawBorders, 
+        //         p.shapeId
+        //     )
+        // )
 
         /*
         // console.log("before sorting....................................")

@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "name": "three_d",
+  "version": "1.0.0",
+  "description": "3d simulation ",
+  "main": "api.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RezPod/3d.git"
+  },
+  "author": "Kuldip Chaudhari",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RezPod/3d/issues"
+  },
+  "homepage": "https://github.com/RezPod/3d#readme"
+}

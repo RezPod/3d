@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <style>
+            #state{
+                position: absolute;
+                z-index: 1;
+            }
+            /* #state2{
+                position: absolute;
+                z-index: 1;
+                top: 200px;
+                left: 10px;
+            } */
+            .canvas-3d-container{
+                display: inline-block;
+                flex:auto;
+                flex-direction: row;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="root">
+            <div id="state">
+                <div id="state1">
+                </div>
+                <div id="state2">
+                </div>
+                <!-- <div>Collisions: <span id="collisions">0</div></div>  -->
+                <div>System Time: <span id="system-time"> 0 </span> s </div>
+            </div>
+        </div>
+        <script src="/vector"></script>
+        <script src="/3d"></script>
+        <!-- <script src="solid.js"></script> -->
+
+        <script>
+            
+            function rgbacolor(r, g, b, a){
+                return "rgba(" 
+                + [r, g, b, a]
+                .join(",")
+                + ")"
+            }
+
+            function playBang() {
+                (new Audio("/bang")).play();
+            }
+
+            function playDing() {
+                (new Audio("/ding.mp3")).play();
+            }
+
+            function incrementCollisions(){
+                document.getElementById("collisions").textContent = Number(document.getElementById("collisions").textContent) + 1;
+            }
+
+            const w = new Canvas3D(document.getElementById("root"), "simulation", 1000, 800);
+            w.changePerspectiveTo([90, 0], [450, 450, 450])
+
+            async function drawSolid(solid, shapeId, color){
+                for(let f of solid.faces){
+                    w.drawPolygon(
+                        f.map(i=>solid.corners[i]),
+                        color ? color : "gold", 
+                        1, 
+                        shapeId
+                    )
+                }
+                w.refresh();
+            }
+            
+            async function updateState(targetName, t, r, v, a, dt, dr, ptime, w1){
+                document.getElementById(targetName).innerHTML = `
+                <span style="font-weight:bold">${targetName}</span>
+                <br>
+                t: ${t.toFixed(2)} sec
+                <br>
+                r: ${r.map(c=>c.toFixed(2)).join(", ")} 
+                <br>
+                v: ${v.map(c=>c.toFixed(2)).join(", ")} <span style="color:blue">[${v.magnitude().toFixed(2)} m/s]</span>
+                <br>
+                a: ${a.map(c=>c.toFixed(2)).join(", ")} <span style="color:yellow">[${a.magnitude().toFixed(2)} m/s^2]</span>
+                <br>
+                dt: ${dt.toFixed(3)} sec
+                <br>
+                dr: ${dr.map(c=>c.toFixed(2)).join(", ")} [${dr.magnitude().toFixed(2)} m]
+                <br>
+                KE: ${(v.magnitude()**2/2).toFixed(2)} Joules
+                <br>
+                PE: ${(10*r[2]).toFixed(2)} Joules
+                <br>
+                Total Energy: <span style="color:red"> ${(v.magnitude()**2/2+10*r[2]).toFixed(2)} Joules </span>
+                <br>
+                Process Time: ${ptime} ms
+                <br>
+                w: ${w1.map(c=>c.toFixed(2)).join(", ")} <span style="color:brown">[${w1.magnitude().toFixed(2)} rad/s]</span>
+                `
+                // const dx = 20*dt;
+                // const x = 20*t;
+
+                // const TE = v.magnitude()**2/2+10*r[2];
+                // plots[targetName][3].add(x, Math.max(10*Math.log2(TE), 0));
+                // plots[targetName][0].add(x, r[2]);
+                // plots[targetName][1].add(x, v.magnitude());
+                // plots[targetName][2].add(x, a.magnitude());
+
+                // if(x > 400){
+                //     // energyPlot = energyPlot.move(-dx);
+                //     // elivationPlot = elivationPlot.move(-dx);
+
+                    
+                //     stateCanvas.changePerspectiveTo(
+                //         [stateCanvas.alpha, stateCanvas.beta], 
+                //         new Vector(...stateCanvas.cameraPosition).add([dx/2, 0, 0])
+                //     );
+                //     plots[targetName] = plots[targetName].map(p=>p.move(-dx/2))
+                    
+                //     // plots.forEach(p=>p.show());
+                //     // energyPlot.show();
+                //     // elivationPlot.show();
+                // }
+                
+            }
+
+            function reDrawSolid(in3DCanvas, shapeId, solid, color="gold"){
+
+                // w.removeShape(shapeId);
+                in3DCanvas.shapes.polygons = w.shapes.polygons.filter(p=>p.shapeId!=shapeId);
+                in3DCanvas.shapes.lines = w.shapes.lines.filter(l=>l.shapeId!=shapeId);
+
+                for(let i in solid.faces){
+                    in3DCanvas.drawPolygon(
+                        solid.faces[i].map(j=>solid.corners[j]),
+                        color ? color : rgbacolor(255, 215, 0, 1), 
+                        1, 
+                        shapeId
+                    )
+                }
+            }
+
+
+            function vectorizeSolidJSON(solidJSON){
+                solidJSON.location = new Vector(...solidJSON.location);
+                solidJSON.corners =  solidJSON.corners.map(c=>new Vector(...c));
+                solidJSON.velocity = solidJSON.velocity ? new Vector(...solidJSON.velocity) : null;
+                solidJSON.angularVelocity = solidJSON.angularVelocity ? new Vector(...solidJSON.angularVelocity) : null;
+                solidJSON.acceleration = solidJSON.acceleration ? new Vector(...solidJSON.acceleration) : null;
+                return solidJSON;
+            }
+
+            function vectoriseState(state){
+                state.containerBox = vectorizeSolidJSON(state.containerBox);
+                state.livingSolids = state.livingSolids.map(s=>vectorizeSolidJSON(s));
+                return state;
+            }
+
+            async function renderSystemState(target3DCanvas, state){
+                reDrawSolid(target3DCanvas, 0, state.containerBox, rgbacolor(0, 126, 126, 0.1));
+                state.livingSolids.forEach((s, i)=> reDrawSolid(target3DCanvas, i+1, s));
+                target3DCanvas.refresh();
+            }
+
+            let plots = null;
+            let startTime = null;
+            let previousSystemTime = 0;
+
+            async function checkSystemState(){
+
+                const response = await fetch(
+                    `/state?after=${previousSystemTime}`
+                );
+                // console.log(response);
+
+                let state = await response.json();
+
+                state = vectoriseState(state);
+                
+                renderSystemState(w, state);
+                document.getElementById("system-time").textContent = state.systemTime;
+
+                if(plots == null){
+                    plots = state.livingSolids.reduce(
+                        (aggregate, target)=>{
+                            aggregate.push(
+                                [
+                                    accelerationPlot, elivationPlot, speedPlot, energyPlot, angularVelocityPlot
+                                ].reduce(
+                                    (a, p)=>{
+                                        a.push(p.emptyCopy()); 
+                                        return a
+                                    },
+                                    []
+                                )
+                            );
+                            return aggregate;
+                        },
+                        []
+                    );
+                   
+                    startTime = state.systemTime;
+                }
+                
+                state.newCollisions.forEach(
+                    c=>playBang()
+                );
+                
+                showVitals(1000/17, state);
+                previousSystemTime = state.systemTime;
+            }
+
+            setInterval(checkSystemState, 17);
+            
+            const rad = (deg)=>2*Math.PI*(deg/360);
+
+            const stateCanvas = new Canvas3D(document.getElementById("root"), "state", 500, 800);
+            stateCanvas.drawAxis(5000);
+            stateCanvas.changePerspectiveTo([90, 0], [200, 200, 200])
+
+            class LineGraph extends Path2D{
+                constructor(context, color="black", data=[]){
+                    super();
+                    this.color = color;
+                    this.context = context;
+                    this.moveTo(...stateCanvas.toCoords(0, 0, 0));
+                    data.forEach(p=>this.add(...p));
+                }
+                add(x, y){
+                    this.lineTo(...stateCanvas.toCoords(x, 0, y));
+                    stateCanvas.ctx.strokeStyle = this.color;
+                    this.context.stroke(this);
+                }
+
+                show(){
+                    stateCanvas.ctx.strokeStyle = this.color;
+                    this.context.stroke(this);
+                    stateCanvas.ctx.strokeStyle = "black";
+                }
+
+                move(dx, dy){
+                    let path = new LineGraph(this.context, this.color);
+                    let m = new DOMMatrix();
+                    m.a = 1;
+                    m.b = 0;
+                    m.c = 0;
+                    m.d = 1;
+                    m.e = dx;
+                    m.f = 0;
+                    path.addPath(this, m);
+                    path.show();
+                    return path;
+                }
+
+                emptyCopy(){
+                    return new LineGraph(this.context, this.color)
+                }
+            }
+
+            let energyPlot = new LineGraph(stateCanvas.ctx, "red");
+            let elivationPlot = new LineGraph(stateCanvas.ctx, "green");
+            let speedPlot = new LineGraph(stateCanvas.ctx, "blue");
+            let accelerationPlot = new LineGraph(stateCanvas.ctx, "yellow");
+            let angularVelocityPlot = new LineGraph(stateCanvas.ctx, "brown");
+
+
+            async function showVitals(freq, state){
+                let x;
+                const k = 1000/freq;
+                for(let i in state.livingSolids){
+                    const solid = state.livingSolids[i];
+
+                    x = k*(solid.age - solid.birthTime - startTime);
+
+                    let r = solid.location;
+                    let v = solid.velocity;
+                    let a = solid.acceleration;
+                    let w = solid.angularVelocity;
+
+                    const TE = v.magnitude()**2/2+10*r[2];
+                    plots[i][3].add(x, Math.max(10*Math.log2(TE), 0));
+                    plots[i][1].add(x, r[2]);
+                    plots[i][2].add(x, v.magnitude());
+                    plots[i][0].add(x, a.magnitude());
+                    plots[i][4].add(x, w.magnitude());
+                }
+
+                if(x > 300){
+                    stateCanvas.changePerspectiveTo(
+                        [stateCanvas.alpha, stateCanvas.beta], 
+                        new Vector(...stateCanvas.cameraPosition).add([k*1/freq, 0, 0])
+                    );
+                    for(let i in plots){
+                        plots[i] = plots[i].map(p=>p.move(-k*1/freq));
+                    }
+                }
+            }
+
+        </script>
+    </body>
+</html>

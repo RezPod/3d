@@ -7,6 +7,12 @@
                 position: absolute;
                 z-index: 1;
             }
+            /* #state2{
+                position: absolute;
+                z-index: 1;
+                top: 200px;
+                left: 10px;
+            } */
             .canvas-3d-container{
                 display: inline-block;
                 flex:auto;
@@ -17,9 +23,14 @@
     <body>
         <div id="root">
             <div id="state">
+            <div id="state1">
+            </div>
+            <div id="state2">
+            </div>
+            <div>Collisions: <span id="collisions">0</div></div> 
             </div>
         </div>
-
+        <script src="vector.js"></script>
         <script src="3d.js"></script>
         <script src="solid.js"></script>
 
@@ -113,7 +124,7 @@
                 [0, 100, 100]
             ]
 
-            const vertecies = [
+            let vertecies = [
                 [0, 0, 0], 
                 [100, 0, 0], 
                 [100, 100, 0],
@@ -132,41 +143,403 @@
                 // [0, 50, 100]
             ]
             
-            function color(r, g, b, a){
+            function rgbacolor(r, g, b, a){
                 return "rgba(" 
                 + [r, g, b, a]
                 .join(",")
                 + ")"
             }
 
-            const w = new Canvas3D(document.getElementById("root"), "simulation", 900);
-            // w.drawAxis(400);
-            w.changePerspectiveTo([90, 0], [200, 200, 200])
+            let collisionCount = 0;
+            function incrementCollisions(){
+                document.getElementById("collisions").textContent = Number(document.getElementById("collisions").textContent) + 1;
+            }
 
-            function drawSolid(solid, convexHull, shapeId, color){
-                for(let f of convexHull.faces){
+            const w = new Canvas3D(document.getElementById("root"), "simulation", 1000);
+            w.changePerspectiveTo([90, 0], [500, 500, 500])
+
+            async function drawSolid(solid, shapeId, color){
+                for(let f of solid.faces){
                     w.drawPolygon(
-                        f.map(i=>solid[i]),
+                        f.map(i=>solid.corners[i]),
                         color ? color : "gold", 
                         1, 
                         shapeId
                     )
                 }
+                w.refresh();
             }
             
+            async function updateState(targetName, t, r, v, a, dt, dr, ptime, w1){
+                document.getElementById(targetName).innerHTML = `
+                <span style="font-weight:bold">${targetName}</span>
+                <br>
+                t: ${t.toFixed(2)} sec
+                <br>
+                r: ${r.map(c=>c.toFixed(2)).join(", ")} 
+                <br>
+                v: ${v.map(c=>c.toFixed(2)).join(", ")} <span style="color:blue">[${v.magnitude().toFixed(2)} m/s]</span>
+                <br>
+                a: ${a.map(c=>c.toFixed(2)).join(", ")} <span style="color:yellow">[${a.magnitude().toFixed(2)} m/s^2]</span>
+                <br>
+                dt: ${dt.toFixed(3)} sec
+                <br>
+                dr: ${dr.map(c=>c.toFixed(2)).join(", ")} [${dr.magnitude().toFixed(2)} m]
+                <br>
+                KE: ${(v.magnitude()**2/2).toFixed(2)} Joules
+                <br>
+                PE: ${(10*r[2]).toFixed(2)} Joules
+                <br>
+                Total Energy: <span style="color:red"> ${(v.magnitude()**2/2+10*r[2]).toFixed(2)} Joules </span>
+                <br>
+                Process Time: ${ptime} ms
+                <br>
+                w: ${w1.map(c=>c.toFixed(2)).join(", ")} <span style="color:brown">[${w1.magnitude().toFixed(2)} rad/s]</span>
+                `
+                // const dx = 20*dt;
+                // const x = 20*t;
+
+                // const TE = v.magnitude()**2/2+10*r[2];
+                // plots[targetName][3].add(x, Math.max(10*Math.log2(TE), 0));
+                // plots[targetName][0].add(x, r[2]);
+                // plots[targetName][1].add(x, v.magnitude());
+                // plots[targetName][2].add(x, a.magnitude());
+
+                // if(x > 400){
+                //     // energyPlot = energyPlot.move(-dx);
+                //     // elivationPlot = elivationPlot.move(-dx);
+
+                    
+                //     stateCanvas.changePerspectiveTo(
+                //         [stateCanvas.alpha, stateCanvas.beta], 
+                //         new Vector(...stateCanvas.cameraPosition).add([dx/2, 0, 0])
+                //     );
+                //     plots[targetName] = plots[targetName].map(p=>p.move(-dx/2))
+                    
+                //     // plots.forEach(p=>p.show());
+                //     // energyPlot.show();
+                //     // elivationPlot.show();
+                // }
+                
+            }
+
+            async function reDrawSolid(shapeId, solid, r, v, a, w1, color){
+
+                // w.removeShape(shapeId);
+                w.shapes.polygons = w.shapes.polygons.filter(p=>p.shapeId!=shapeId);
+                w.shapes.lines = w.shapes.lines.filter(l=>l.shapeId!=shapeId);
+
+                const cp = new Vector(...w.cameraPosition);
+                const p = new Vector(...w.perspective);
+
+                const minDs = solid.faces.map(
+                    f=>f.reduce(
+                        (minD, i)=> {
+                            const d = solid.corners[i].subtract(cp).proj(p).magnitude()
+                            if(d < minD)
+                                minD = d;
+                            return minD
+                        }, Infinity
+                    )
+                )
+
+                const order =  Object.keys(solid.faces).sort(
+                    (a, b)=>minDs[b]-minDs[a]
+                )
+
+                // w.drawLine(...r, ...r.add(v.scale(2)), shapeId, "blue");
+                // w.drawLine(...r, ...r.add(a.scale(2)), shapeId, "yellow");
+                // w.drawLine(...r, ...r.add(w1.scale(50)), shapeId, "brown");
+
+                for(let i of order){
+                    // this.shapes.polygons.push({
+                    //     coords:convexHull.faces[i].map(j=>solid.corners[j]), 
+                    //     fillColor:color, 
+                    //     draw1Borders:1, 
+                    //     shapeId:shapeId}
+                    // );
+                    w.drawPolygon(
+                        solid.faces[i].map(j=>solid.corners[j]),
+                        color ? color : rgbacolor(255, 215, 0, 1), 
+                        1, 
+                        shapeId
+                    )
+                }                
+                w.refresh();
+            }
+
+        
+            const rad = (deg)=>2*Math.PI*(deg/360);
+
+            const drag = 0.0;
+            const windForce = new Vector(0, 0, 0);
+            const g = new Vector(0, 0, -10);
+            const springConstant = 1*0;
+            const springHinge = new Vector(200, 0, 200);
+
+        
+            const q1 = 80e-3;
+            const q2 = -3e-3;
+            const k  = 8.99e9;
+            const eC = k*q1*q2;
+            const orbitRadius = 100
+            
+            const containerBox = new Solid(vertecies);
+
+            containerBox.scale(4+0.2);
+            containerBox.moveTo([200, 0, 200]);
+            // containerBox.rotate(new Vector(1, 1, 1).scale(Math.PI/6));
+            drawSolid(containerBox, 1, rgbacolor(0, 0, 124, drag));
+            const r2 = containerBox.center();
+
+            const angle = rad(0);
+
+            const u = new Vector(
+                    Math.cos(angle),
+                    0,   
+                    Math.sin(angle)
+            ).scale(
+                // Math.abs(1*eC/orbitRadius)**0.5
+                60
+            );
+
+            let acceleration = (t, v, r) => {
+                const r12 = r.subtract(r2);
+                const electricForce = r12.unit().scale(
+                    eC/(r12.magnitude()**2)
+                )
+
+                const springForce = r.subtract(springHinge).unit().scale(
+                    // -(Math.random()-0.5)
+                    -springConstant
+                    *r.subtract(springHinge).magnitude()
+                );
+
+                return g
+                .add(springForce)
+                // .add(electricForce)
+                .add(windForce)
+                .add(
+                    v.scale(-drag)
+                );
+            };
+
+            let angularVelocity = new Vector(0, 0, 1).scale(Math.PI/4);
+
+            function playBang() {
+                (new Audio("/bang.mp3")).play();
+            }
+
+            function playDing() {
+                (new Audio("/ding.mp3")).play();
+            }
+
+            const bounderies = [{
+                r0:new Vector(0, 0, 0), 
+                n:new Vector(0, 0, 1)
+            },{
+                r0:new Vector(400, 0, 0),
+                n: new Vector(-1, 0, 0)
+            },{
+                r0:new Vector(0, 0, 0),
+                n: new Vector(1, 0, 0)
+            },{
+                r0:new Vector(0, 0, 400),
+                n: new Vector(0, 0, -1)
+            },{
+                r0:new Vector(0, 200, 0),
+                n: new Vector(0, -1, 0)
+            },{
+                r0:new Vector(0, -200, 0),
+                n: new Vector(0, 1, 0)
+            },]
+
+            const livingSolids = [];
+
+            // vertecies = prismPyramidTilted;
 
             let solid1 = new Solid(vertecies);
-            const convexHull = solid1.convexHull();
-            console.log(convexHull);
-
             solid1.scale(0.2);
-            solid1.moveTo([10, 0, 10])
+            solid1.live(
+                new Vector(200, 0, 200),
+                u, 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(0, s, r, v, a, w1),
+                (t, r, v, a, dt, dr, ptime, w1)=>updateState("state1", t, r, v, a, dt, dr, ptime, w1),
+                bounderies,
+                (t, r, v, b)=>{playBang(); collisionCount=+1},
+                angularVelocity,
+                containerBox
+            )
+            livingSolids.push(solid1);
 
-            const stateCanvas = new Canvas3D(document.getElementById("root"), "state", 600);
+
+            let solid2 = new Solid(vertecies);
+            solid2.scale(0.2);
+            solid2.live(
+                new Vector(200, 0, 10),
+                u.add([0, 0, 0]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(2, s, r, v, a, w1, "orange"),
+                (t, r, v, a, dt, dr, ptime, w1)=>updateState("state2", t, r, v, a, dt, dr, ptime, w1),
+                bounderies,
+                (t, r, v, w)=>{playBang(); incrementCollisions()},
+                angularVelocity.scale(6),
+                containerBox
+            )
+            livingSolids.push(solid2);
+            
+
+            let solid3 = new Solid(vertecies);
+            solid3.scale(0.2);
+            solid3.live(
+                new Vector(30, 0, 300),
+                u.add([0, 0, 0]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(3, s, r, v, a, w1, "green"),
+                ()=>null,
+                // (t, r, v, a, dt, dr, ptime )=>updateState("state2", t, r, v, a, dt, dr, ptime),
+                bounderies,
+                (t, r, v, b)=>{playBang();  incrementCollisions()},
+                Vector.zero(),
+                containerBox
+            )
+            livingSolids.push(solid3);
+
+            let solid4 = new Solid(vertecies);
+            solid4.scale(0.2);
+            solid4.live(
+                new Vector(0, 0, 200),
+                u.add([0, 0, 0]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(4, s, r, v, a, w1, "red"),
+                ()=>null,
+                // (t, r, v, a, dt, dr, ptime )=>updateState("state2", t, r, v, a, dt, dr, ptime),
+                bounderies,
+                (t, r, v, b)=>{playBang(); collisionCount=collisionCount+1},
+                Vector.zero(),
+                containerBox
+            )
+            livingSolids.push(solid4);
+
+            let solid5 = new Solid(vertecies);
+            solid5.scale(0.2);
+            solid5.live(
+                new Vector(100, 0, 200),
+                u.add([0, 0, 0]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(5, s, r, v, a, w1, "blue"),
+                ()=>null,
+                // (t, r, v, a, dt, dr, ptime )=>updateState("state2", t, r, v, a, dt, dr, ptime),
+                bounderies,
+                (t, r, v, b)=>{playBang(); incrementCollisions()},
+                Vector.zero(),
+                containerBox
+            )
+            livingSolids.push(solid5);
+
+            let solid6 = new Solid(vertecies);
+            solid6.scale(0.2);
+            solid6.live(
+                new Vector(100, 0, 100),
+                u.add([0, 0, 0]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(7, s, r, v, a, w1, "violet"),
+                ()=>null,
+                // (t, r, v, a, dt, dr, ptime )=>updateState("state2", t, r, v, a, dt, dr, ptime),
+                bounderies,
+                (t, r, v, b)=>{playBang(); incrementCollisions()},
+                Vector.zero(),
+                containerBox
+            )
+            livingSolids.push(solid6);
+
+            let solid8 = new Solid(vertecies);
+            solid8.scale(0.2);
+            solid8.live(
+                new Vector(100, 0, 100),
+                u.add([50, 0, 100]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(8, s, r, v, a, w1, "pink"),
+                ()=>null,
+                // (t, r, v, a, dt, dr, ptime )=>updateState("state2", t, r, v, a, dt, dr, ptime),
+                bounderies,
+                (t, r, v, b)=>{playBang(); incrementCollisions()},
+                Vector.zero(),
+                containerBox
+            )
+            livingSolids.push(solid8);
+
+            let solid9 = new Solid(vertecies);
+            solid9.scale(0.2);
+            solid9.live(
+                new Vector(100, 0, 100),
+                u.add([25, 0, 50]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(9, s, r, v, a, w1, "cyan"),
+                ()=>null,
+                // (t, r, v, a, dt, dr, ptime )=>updateState("state2", t, r, v, a, dt, dr, ptime),
+                bounderies,
+                (t, r, v, b)=>{playBang(); incrementCollisions()},
+                Vector.zero(),
+                containerBox
+            )
+            livingSolids.push(solid9);
+
+            let solid10 = new Solid(vertecies);
+            solid10.scale(0.2);
+            solid10.live(
+                new Vector(100, 0, 100),
+                u.add([25, 0, 50]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(11, s, r, v, a, w1, "white"),
+                ()=>null,
+                // (t, r, v, a, dt, dr, ptime )=>updateState("state2", t, r, v, a, dt, dr, ptime),
+                bounderies,
+                (t, r, v, b)=>{playBang(); incrementCollisions()},
+                Vector.zero(),
+                containerBox
+            )
+            livingSolids.push(solid10);
+
+            let solid11 = new Solid(vertecies);
+            solid11.scale(0.2);
+            solid11.live(
+                new Vector(100, 0, 100),
+                u.add([25, 0, 50]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(12, s, r, v, a, w1, "grey"),
+                ()=>null,
+                // (t, r, v, a, dt, dr, ptime )=>updateState("state2", t, r, v, a, dt, dr, ptime),
+                bounderies,
+                (t, r, v, b)=>{playBang(); incrementCollisions()},
+                Vector.zero(),
+                containerBox
+            )
+            livingSolids.push(solid11);
+
+            let solid12 = new Solid(vertecies);
+            solid12.scale(0.2);
+            solid12.live(
+                new Vector(100, 0, 100),
+                u.add([25, 0, 50]), 
+                acceleration,
+                (s, r, v, a, w1) => reDrawSolid(14, s, r, v, a, w1, "black"),
+                ()=>null,
+                // (t, r, v, a, dt, dr, ptime )=>updateState("state2", t, r, v, a, dt, dr, ptime),
+                bounderies,
+                (t, r, v, b)=>{playBang(); incrementCollisions()},
+                Vector.zero(),
+                containerBox
+            )
+            livingSolids.push(solid12);
+
+
+            const stateCanvas = new Canvas3D(document.getElementById("root"), "state", 1000);
             stateCanvas.drawAxis(5000);
             stateCanvas.changePerspectiveTo([90, 0], [200, 200, 200])
 
-            class LineGrap extends Path2D{
+            class LineGraph extends Path2D{
                 constructor(context, color="black", data=[]){
                     super();
                     this.color = color;
@@ -187,7 +560,7 @@
                 }
 
                 move(dx, dy){
-                    let path = new LineGrap(this.context, this.color);
+                    let path = new LineGraph(this.context, this.color);
                     let m = new DOMMatrix();
                     m.a = 1;
                     m.b = 0;
@@ -199,162 +572,167 @@
                     path.show();
                     return path;
                 }
+
+                emptyCopy(){
+                    return new LineGraph(this.context, this.color)
+                }
             }
 
-            let energyPlot = new LineGrap(stateCanvas.ctx, "red");
-            let elivationPlot = new LineGrap(stateCanvas.ctx, "green");
-            let speedPlot = new LineGrap(stateCanvas.ctx, "blue");
-            let accelerationPlot = new LineGrap(stateCanvas.ctx, "yellow");
-            let plots = [elivationPlot, speedPlot, accelerationPlot, energyPlot];
-            // const energyPlot = new LineGrap(context, "black");
+            let energyPlot = new LineGraph(stateCanvas.ctx, "red");
+            let elivationPlot = new LineGraph(stateCanvas.ctx, "green");
+            let speedPlot = new LineGraph(stateCanvas.ctx, "blue");
+            let accelerationPlot = new LineGraph(stateCanvas.ctx, "yellow");
+            let angularVelocityPlot = new LineGraph(stateCanvas.ctx, "brown");
 
-            async function updateState(t, r, v, a, dt, dr, ptime){
-                document.getElementById("state").innerHTML = `
-                t: ${t.toFixed(2)} sec
-                <br>
-                r: ${r.map(c=>c.toFixed(2)).join(", ")} 
-                <br>
-                v: ${v.map(c=>c.toFixed(2)).join(", ")} <span style="color:blue">[${v.magnitude().toFixed(2)} m/s]</span>
-                <br>
-                a: ${a.map(c=>c.toFixed(2)).join(", ")} <span style="color:yellow">[${a.magnitude().toFixed(2)} m/s^2]</span>
-                <br>
-                dt: ${dt.toFixed(3)} sec
-                <br>
-                dr: ${dr.map(c=>c.toFixed(2)).join(", ")} [${dr.magnitude().toFixed(2)} m]
-                <br>
-                KE: ${(v.magnitude()**2/2).toFixed(2)} Joules
-                <br>
-                PE: ${(10*r[2]).toFixed(2)} Joules
-                <br>
-                Total Energy: <span style="color:red"> ${(v.magnitude()**2/2+10*r[2]).toFixed(2)} Joules </span>
-                <br>
-                Process Time: ${ptime} ms
-                `
-                const dx = 20*dt;
-                const x = 20*t;
+            let plots = livingSolids.reduce(
+                (aggregate, target)=>{
+                    aggregate.push(
+                        [
+                            accelerationPlot, elivationPlot, speedPlot, energyPlot, angularVelocityPlot
+                        ].reduce(
+                            (a, p)=>{
+                                a.push(p.emptyCopy()); 
+                                return a
+                            },
+                            []
+                        )
+                    );
+                    return aggregate;
+                },
+                []
+            );
+            // const energyPlot = new LineGraph(context, "black");
 
-                const TE = v.magnitude()**2/2+10*r[2];
-                plots[3].add(x, Math.max(10*Math.log2(TE), 0));
-                plots[0].add(x, r[2]);
-                plots[1].add(x, v.magnitude());
-                plots[2].add(x, a.magnitude());
+
+            function checkVitals(freq){
+                let x;
+                const k = 20;
+                for(let i in livingSolids){
+                    const solid = livingSolids[i];
+
+                    x = k*(solid.age-solid.birthTime);
+
+                    let r = solid.location;
+                    let v = solid.velocity;
+                    let a = solid.acceleration;
+                    let w1 = solid.angularVelocity;
+
+                    const TE = v.magnitude()**2/2+10*r[2];
+                    plots[i][3].add(x, Math.max(10*Math.log2(TE), 0));
+                    plots[i][1].add(x, r[2]);
+                    plots[i][2].add(x, v.magnitude());
+                    plots[i][0].add(x, a.magnitude());
+                    plots[i][4].add(x, w1.magnitude());
+                }
 
                 if(x > 400){
-                    // energyPlot = energyPlot.move(-dx);
-                    // elivationPlot = elivationPlot.move(-dx);
-
-                    
                     stateCanvas.changePerspectiveTo(
                         [stateCanvas.alpha, stateCanvas.beta], 
-                        new Vector(...stateCanvas.cameraPosition).add([dx, 0, 0])
+                        new Vector(...stateCanvas.cameraPosition).add([k*1/freq, 0, 0])
                     );
-                    plots = plots.map(p=>p.move(-dx))
+                    for(let i in plots){
+                        plots[i] = plots[i].map(p=>p.move(-k*1/freq));
+                    }
+                }
+            }
+            setInterval(()=>checkVitals(50), 1000/50);
+
+            function checkCollisions(){
+                // const minApproach = 20*3**0.5;
+                for(let i=0; i<livingSolids.length; i++){
+                    for(let j=i+1; j<livingSolids.length; j++){
+                        if(i==j){
+                            continue;
+                        }
+                        let collisionFlag = false;
+                        // let collisionPoint;
+
+                        let s1 = livingSolids[i];
+                        let s2 = livingSolids[j];
+
+                        const r12 = s2.location.subtract(s1.location);
+                        const approach = r12.magnitude();
+
+                        if(approach < s1.minRadius + s2.minRadius){
+                        // if(false) {
+                            collisionFlag = true;
+                            // for(let c of s1.corners){
+                            //     if(s2.contains(c)){
+                            //         collisionPoint = c;
+                            //         break;
+                            //     }
+                            // }
+                        } else if ( approach < s1.maxRadius + s2.maxRadius){
+                            for(let c of s1.corners){
+                                if(s2.contains(c)){
+                                    collisionFlag = true;
+                                    collisionPoint = c;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if(collisionFlag===true){
+                            playDing();
+                            // collisionCount=collisionCount+1;
+                            incrementCollisions()
+                            const dr = r12.unit().scale((s1.maxRadius + s2.maxRadius - approach)/2);
+
+                            // const r1 = collisionPoint;
+                            // const r0 = collisionPoint.subtract(
+                            //     s1.velocity.scale(0.017)
+                            // )
+                            // const r0r1 = r1.subtract(r0);
+
+                            // let delta_r1, delta_r2;
+
+                            // for(let f of s2.faces){
+                            //     const facePolygon = f.map(i=>s2.corners[i]);
+                            //     const p1 = s2.corners[f[0]];
+                            //     const n_cap = Vector.normal(...facePolygon.slice(0, 3));
+
+                            //     const cp1 = collisionPoint.subtract(p1)
+                            //     const d = Math.abs(cp1.dot(n_cap));
+                            //     const sin_theta = cp1.unit().cross(n_cap).magnitude();
+                            //     const cos_theta = (1 - sin_theta**2)**0.5;
+                            //     const hypot =  d / sin_theta;
+
+                            //     const intersection = r1.add(r1.subtract(r0).unit().scale(-hypot));
+
+                            //     if(intersection.isWithin(facePolygon)){
+                            //         const v1 = s1.velocity.proj(r0r1).magnitude();
+                            //         const v2 = s2.velocity.proj(r0r1).magnitude();
+
+                            //         delta_r1 = s1.velocity.unit().scale(
+                            //             -hypot * v1/(v1+v2)
+                            //         )
+
+                            //         delta_r2 = s2.velocity.unit().scale(
+                            //             -hypot * v2/(v1+v2)
+                            //         )
+                            //         break;
+                            //     }
+                            // }
+
+                            
+                            // s1.move(delta_r1);
+                            // s2.move(delta_r2);
+
+                            // s1.location = s1.center();
+                            // s2.location = s2.center();
+
+                            s1.location = s1.location.subtract(dr);
+                            s2.location = s2.location.add(dr);
+
+                            [s1.velocity, s2.velocity] = [s2.velocity, s1.velocity];
+                            [s1.angularVelocity, s2.angularVelocity] = [s2.angularVelocity, s1.angularVelocity];
+                        }
+                    }
                     
-                    // plots.forEach(p=>p.show());
-                    // energyPlot.show();
-                    // elivationPlot.show();
                 }
-                
             }
+            setInterval(checkCollisions, 17);
 
-            async function reDrawSolid(shapeId, solid, r, v, a){
-
-                w.removeShape(shapeId);
-
-                // const r = solid.center();
-
-                for(let f of convexHull.faces){
-                    w.drawPolygon(
-                        f.map(i=>solid[i]),
-                        color(255, 215, 0, 0.5), 
-                        1, 
-                        shapeId
-                    )
-                }
-
-                w.drawLine(...r, ...r.add(v.scale(2)), 0, "yellow");
-                w.drawLine(...r, ...r.add(a.scale(2)), 0, "blue");
-                
-                w.refresh();
-            }
-
-        
-            const rad = (deg)=>2*Math.PI*(deg/360);
-
-            const angle = rad(0);
-
-            const drag = 0.3;
-            const windForce = new Vector(0, 0, 0);
-            const g = new Vector(0, 0, -10);
-
-            const solid2 = new Solid(vertecies);
-            solid2.scale(4.2);
-            solid2.moveTo([200, 0, 200]);
-            drawSolid(solid2, convexHull, 1, color(0, 0, 124, drag));
-            const r2 = solid2.center();
-
-            const q1 = 80e-3;
-            const q2 = 3e-3*0;
-            const k  = 8.99e9;
-            const eC = k*q1*q2;
-            const orbitRadius = 100
-
-            const u = new Vector(
-                    Math.cos(angle),
-                    0,   
-                    Math.sin(angle)
-            ).scale(
-                // Math.abs(1*eC/orbitRadius)**0.5
-                60
-            );
-
-            let acceleration = (t, v, r) => {
-                const r12 = r.subtract(r2);
-                const electricForce = r12.unit().scale(
-                    eC/(r12.magnitude()**2)
-                )
-
-                return g
-                .add(electricForce)
-                .add(windForce)
-                .add(
-                    v.scale(-drag)
-                );
-            };
-
-            function playBang() {
-                (new Audio("/bang.mp3")).play();
-            }
-
-            const bounderies = [{
-                r0:new Vector(0, 0, 0), 
-                n:new Vector(0, 0, 1)
-            },{
-                r0:new Vector(400, 0, 0),
-                n: new Vector(-1, 0, 0)
-            },{
-                r0:new Vector(0, 0, 0),
-                n: new Vector(1, 0, 0)
-            },{
-                r0:new Vector(0, 0, 400),
-                n: new Vector(0, 0, -1)
-            },{
-                r0:new Vector(0, 100, 0),
-                n: new Vector(0, -1, 0)
-            },{
-                r0:new Vector(0, -100, 0),
-                n: new Vector(0, 1, 0)
-            },]
-
-            solid1.live(
-                new Vector(0, 0, 0),
-                u, 
-                acceleration,
-                (s, r, v, a) => reDrawSolid(0, s, r, v, a),
-                updateState,
-                bounderies,
-                (t, r, v, b)=>(new Audio("/bang.mp3")).play()
-            )
         </script>
     </body>
 </html>
