@@ -1,17 +1,11 @@
-// function importFrom(jsFileURL){
-//     var script = document.createElement("script");  // create a script DOM node
-//     script.src = jsFileURL;  // set its src to the provided URL
-//     document.head.appendChild(script);
-// }
+// const Vector  = require("./vector.js");
 
-// importFrom("vector.js");
-// import Vector from "vector";
+// const Polygon = require("./polygon.js");
 
-const {Vector}  = require("./vector.js");
 
 class Solid extends Object{
     constructor(
-        points, name
+        points, name, density
     ){
         super();
         this.name = name;
@@ -28,6 +22,9 @@ class Solid extends Object{
         this.maxRadius = Math.max(...this.corners.map(c=>c.subtract(this.location).magnitude()));
         this.minRadius = Math.min(...this.faces.map(f=>this.location.distance(this.corners[f[0]], this.corners[f[1]], this.corners[f[2]])));
 
+        this.density = density ? density : 0.001; //kg/m^3
+        this.volumeValue = this.volume()
+        this.mass = this.density * this.volumeValue; 
     }
 
     move(by){
@@ -50,7 +47,7 @@ class Solid extends Object{
 
     center(){
         return this.corners.reduce(
-            (s, p)=>{s=s.add(p); return s}, Vector.zero()
+            (s, p)=>s.add(p), Vector.zero()
         ).scale(1/this.corners.length);
     }
 
@@ -64,6 +61,7 @@ class Solid extends Object{
         for(let i in this.corners){
             this.corners[i] = location.add(this.corners[i].subtract(c));
         }
+        this.location = location;
     }
 
     scale(by){
@@ -74,6 +72,9 @@ class Solid extends Object{
 
         this.maxRadius = Math.max(...this.corners.map(c=>c.subtract(center).magnitude()));
         this.minRadius = Math.min(...this.faces.map(f=>this.location.distance(this.corners[f[0]], this.corners[f[1]], this.corners[f[2]])));
+
+        this.volumeValue = this.volume()
+        this.density = this.mass / this.volumeValue;
     }
 
     act=()=>{
@@ -86,7 +87,7 @@ class Solid extends Object{
         let deltaT = t-t1;
         // let r = this.center(); 
 
-        let a_inst = this.inst_acceleration(t-this.birthTime, v1, r1);
+        let a_inst = this.inst_acceleration(this, t-this.birthTime, v1, r1);
 
         let v = v1.add(
             a_inst.scale(deltaT)
@@ -97,131 +98,133 @@ class Solid extends Object{
             r = r1.add(v.scale(deltaT));
             this.moveTo(r);
 
-            let isOutSideBounds = false;
-            let cornerOutisdeBounds; 
-            const d = r.subtract(this.containerSolid.center()).magnitude();
-            
-            if(d > this.containerSolid.maxRadius - this.minRadius){
-                isOutSideBounds = true;
-                const cc = this.containerSolid.center();
+            if(this.containerSolid){
+                let isOutSideBounds = false;
+                let cornerOutisdeBounds; 
+                const d = r.subtract(this.containerSolid.center()).magnitude();
+                
+                if(d > this.containerSolid.maxRadius - this.minRadius){
+                    isOutSideBounds = true;
+                    const cc = this.containerSolid.center();
 
-                let maxD = 0; 
-                cornerOutisdeBounds = this.corners.reduce((max, c)=>{
-                    let D = c.subtract(cc).magnitude();
-                    if( D > maxD){
-                        maxD = D;
-                        return c;
-                    };
-                    return max;
-                }, Vector.zero());
-            } else if (d > this.containerSolid.minRadius - this.maxRadius) {
-                for(let c of this.corners){
-                    if(!this.containerSolid.contains(c)){
-                        isOutSideBounds = true;
-                        cornerOutisdeBounds = c;
-                        break;
-                    }
-                }
-            }
-
-            if(isOutSideBounds){
-
-                let c2 = cornerOutisdeBounds;
-                let c1 = r1.add(c2.subtract(r));
-                let c1c2_cap = c2.subtract(c1).unit();
-                let cc = this.containerSolid.center();
-                // const r2 = r.add(r.subtract(r1).unit().scale(this.maxRadius));
-
-                for(let f of this.containerSolid.faces){
-                    const p1 = this.containerSolid.corners[f[0]];
-                    const n_cap = Vector.normal(...f.slice(0, 3).map(i=>this.containerSolid.corners[i]));
-                    if(
-                        // c1.subtract(p1).dot(n_cap) * 
-                        cc.subtract(p1).dot(n_cap) * 
-                        c2.subtract(p1).dot(n_cap) <= 0
-                    ){
-                        const v_perp = v.proj(n_cap);
-
-                        if(
-                            // (
-                            //     v1.proj(n_cap).magnitude()<1 
-                            //     // || 
-                            //     //v_perp.magnitude()<1
-                            // ) && 
-                            c1.subtract(p1).dot(n_cap)==0
-                        ){
-                            v = v.subtract(v_perp);
-                            r = r1.add(v.scale(deltaT));
+                    let maxD = 0; 
+                    cornerOutisdeBounds = this.corners.reduce((max, c)=>{
+                        let D = c.subtract(cc).magnitude();
+                        if( D > maxD){
+                            maxD = D;
+                            return c;
+                        };
+                        return max;
+                    }, Vector.zero());
+                } else if (d > this.containerSolid.minRadius - this.maxRadius) {
+                    for(let c of this.corners){
+                        if(!this.containerSolid.contains(c)){
+                            isOutSideBounds = true;
+                            cornerOutisdeBounds = c;
                             break;
                         }
-
-                        this.onCollision(t-this.birthTime, r1, v1);
-
-                        if(v_perp.magnitude()>1){
-                            v = v.subtract(v_perp.scale(2));
-                        } else {
-                            v = v.subtract(v_perp);
-                        }
-                        w1 = this.angularVelocity.scale(-1);
-
-                        const dn = Math.abs(c2.subtract(p1).dot(n_cap));
-                        const sin_theta = c1c2_cap.cross(n_cap).magnitude();
-
-                        const cos_theta = (1 - sin_theta**2)**0.5;
-                        const hypot = dn/cos_theta;
-
-                        c2 = c2.add(c1c2_cap.scale(-hypot));
-                        r  = r1.add(c2.subtract(c1)); 
-
-                        break;
                     }
                 }
+
+                if(isOutSideBounds){
+
+                    let c2 = cornerOutisdeBounds;
+                    let c1 = r1.add(c2.subtract(r));
+                    let c1c2_cap = c2.subtract(c1).unit();
+                    let cc = this.containerSolid.center();
+                    // const r2 = r.add(r.subtract(r1).unit().scale(this.maxRadius));
+
+                    for(let f of this.containerSolid.faces){
+                        const p1 = this.containerSolid.corners[f[0]];
+                        const n_cap = Vector.normal(...f.slice(0, 3).map(i=>this.containerSolid.corners[i]));
+                        if(
+                            // c1.subtract(p1).dot(n_cap) * 
+                            cc.subtract(p1).dot(n_cap) * 
+                            c2.subtract(p1).dot(n_cap) <= 0
+                        ){
+                            const v_perp = v.proj(n_cap);
+
+                            if(
+                                // (
+                                //     v1.proj(n_cap).magnitude()<1 
+                                //     // || 
+                                //     //v_perp.magnitude()<1
+                                // ) && 
+                                c1.subtract(p1).dot(n_cap)==0
+                            ){
+                                v = v.subtract(v_perp);
+                                r = r1.add(v.scale(deltaT));
+                                break;
+                            }
+
+                            this.onCollision(t-this.birthTime, r1, v1);
+
+                            if(v_perp.magnitude()>1){
+                                v = v.subtract(v_perp.scale(2));
+                            } else {
+                                v = v.subtract(v_perp);
+                            }
+                            w1 = this.angularVelocity.scale(-1);
+
+                            const dn = Math.abs(c2.subtract(p1).dot(n_cap));
+                            const sin_theta = c1c2_cap.cross(n_cap).magnitude();
+
+                            const cos_theta = (1 - sin_theta**2)**0.5;
+                            const hypot = dn/cos_theta;
+
+                            c2 = c2.add(c1c2_cap.scale(-hypot));
+                            r  = r1.add(c2.subtract(c1)); 
+
+                            break;
+                        }
+                    }
+                }
+
+                // if(
+                //     this.containerSolid.minRadius 
+                //     < r.subtract(this.containerSolid.center()).magnitude() + this.maxRadius
+                // ) {
+
+                //     for(let b of this.bounderies){
+                //         // (r-r0).n = 0   -> {r lies on the plane}
+                //         // (r-r0).n >< 0  -> {distance of r from the plane}
+                //         const np = v.proj(b.n);
+
+                //         if(r1.subtract(b.r0).dot(b.n)==0){
+                //             if(v1.proj(b.n).magnitude()<1 || np.magnitude()<1){
+                //                 v = v.subtract(np);
+                //             }
+                //             continue;
+                //         }
+
+                //         r = r1.add(v.scale(deltaT));
+                //         const c = r.subtract(b.r0).dot(b.n);
+
+                //         if(c<0){
+                //             if(np.dot(b.n) < 0){
+                //                 v = v.add(np.scale(-2));
+
+                //                 // r_final = r + (r_distance_from_boundery_plan/(n.v_unit))v_unit
+                //                 const v_unit = v.unit()
+                //                 r = r.add(
+                //                     v_unit.scale(
+                //                         Math.abs(c)
+                //                         /v_unit.dot(b.n)
+                //                     )
+                //                 )
+
+                //                 if(np.magnitude()<1){
+                //                     v = v.subtract(np);
+                //                 }else{
+                //                     this.angularVelocity = this.angularVelocity.scale(-1);
+                //                     this.onCollision(t-this.birthTime, r, v, b);
+                //                 }
+                //                 break;
+                //             }                    
+                //         }
+                //     }
+                // }
             }
-
-            // if(
-            //     this.containerSolid.minRadius 
-            //     < r.subtract(this.containerSolid.center()).magnitude() + this.maxRadius
-            // ) {
-
-            //     for(let b of this.bounderies){
-            //         // (r-r0).n = 0   -> {r lies on the plane}
-            //         // (r-r0).n >< 0  -> {distance of r from the plane}
-            //         const np = v.proj(b.n);
-
-            //         if(r1.subtract(b.r0).dot(b.n)==0){
-            //             if(v1.proj(b.n).magnitude()<1 || np.magnitude()<1){
-            //                 v = v.subtract(np);
-            //             }
-            //             continue;
-            //         }
-
-            //         r = r1.add(v.scale(deltaT));
-            //         const c = r.subtract(b.r0).dot(b.n);
-
-            //         if(c<0){
-            //             if(np.dot(b.n) < 0){
-            //                 v = v.add(np.scale(-2));
-
-            //                 // r_final = r + (r_distance_from_boundery_plan/(n.v_unit))v_unit
-            //                 const v_unit = v.unit()
-            //                 r = r.add(
-            //                     v_unit.scale(
-            //                         Math.abs(c)
-            //                         /v_unit.dot(b.n)
-            //                     )
-            //                 )
-
-            //                 if(np.magnitude()<1){
-            //                     v = v.subtract(np);
-            //                 }else{
-            //                     this.angularVelocity = this.angularVelocity.scale(-1);
-            //                     this.onCollision(t-this.birthTime, r, v, b);
-            //                 }
-            //                 break;
-            //             }                    
-            //         }
-            //     }
-            // }
 
             if(r.subtract(r1).magnitude()>0 && v.magnitude()>0.01){
                 this.moveTo(r);
@@ -257,23 +260,23 @@ class Solid extends Object{
         clearInterval(this.life);
     }
 
-    live= async (
+    live = async (
         r = null,
         u = Vector.zero(), 
-        inst_acceleration = (t, v, r)=>Vector(0, 0, 0), 
+        inst_acceleration = (t, v, r)=>Vector.zero(), 
         onMotion=()=>null, 
         onStateChange=()=>null,
         bounderies=[],
         onCollision=()=>null,
         w = Vector.zero(),
-        container
+        container = null
     )=>{
         this.birthTime = Date.now()/1000;
         
         this.location = r ? r : this.location;
         this.moveTo(this.location);
 
-        this.velocity = u;
+        this.velocity = u ? u : Vector.zero();
         this.age = this.birthTime;
         this.inst_acceleration = inst_acceleration;
         this.onMotion = onMotion;
@@ -508,8 +511,21 @@ class Solid extends Object{
 
         return true;
     }
+
+    volume(){
+        let totalVolume = 0;
+        const center = this.center();
+
+        for(let f of this.faces){
+            const p = new Polygon(f.map(i=>this.corners[i]));
+            totalVolume += (1/3) * center.distance(
+                ...p.corners.slice(0, 3)
+            )*(
+                p.area()
+            )
+        }
+        return totalVolume;
+    }
 }
-module.exports = { Solid };
-// const solid = new Solid(vertecies);
-// const convexHull = solid.convexHull();
-// console.log(convexHull);
+
+module.exports = Solid;

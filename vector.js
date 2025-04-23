@@ -48,7 +48,6 @@ class Vector extends Array{
     }
 
     equate(vector){
-        // return ! this.operate(vector, (c1, c2)=> c1==c2 ? 0 : 1 ).magnitude();
         return this.subtract(vector).isZero();
     }
 
@@ -71,14 +70,6 @@ class Vector extends Array{
     }
 
     angle(vector){
-        // return toDegrees(
-        //     Math.acos( 
-        //         Math.min(
-        //             this.unit().dot(vector.unit()), 
-        //             1
-        //         ) 
-        //     )
-        // )
         return Math.acos( 
             Math.min(
                 this.unit().dot(vector.unit()), 
@@ -126,7 +117,6 @@ class Vector extends Array{
         const r_perp_bar = r_perp.magnitude();
         const r_perp_cap = r_perp.unit();
 
-        // v_rotated = cos(theta)v + (v_magnitude*sin(theta))n_unit
         const r_perp_rotated = r_perp_cap.scale(
             Math.cos(by_theta)
         ).add(
@@ -134,14 +124,7 @@ class Vector extends Array{
         ).scale(
             r_perp_bar
         )
-        // const r_perp_rotated =  r_perp.scale(
-        //     Math.cos(theta)
-        // ).add(
-        //     n_unit.scale(
-        //         r_perp.magnitude() * Math.sin(theta)
-        //     )
-        // )
-
+        
         return r_parallel.add(r_perp_rotated);
 
     }
@@ -178,13 +161,28 @@ class Vector extends Array{
     }
 
     distance(p1, p2, p3){ // plane is defined a set of non-colinear points on it
-        const n_cap = p2.subtract(p1).cross(p3.subtract(p2)).unit();
-        return Math.abs(this.subtract(p1).dot(n_cap));
+        if(p2==undefined && p3==undefined)
+            return p1.subtract(this).magnitude();
+        else if(p3==undefined){
+            const r2 = p2.subtract(this);
+            return (r2.magnitude()**2 - r2.dot(p2.subtract(p1).unit())**2)**0.5 
+        } else {
+            const n_cap = p2.subtract(p1).cross(p3.subtract(p2)).unit();
+            return Math.abs(this.subtract(p1).dot(n_cap));
+        }
     }
 
     image(p1, p2, p3){
-        const n_cap = p2.subtract(p1).cross(p3.subtract(p2)).unit();
-        return this.subtract(this.subtract(p1).proj(n_cap));
+        if(p3==undefined){
+            return p2.subtract(p2.subtract(this).proj(p2.subtract(p1)));
+        } else {
+            const n_cap = p2.subtract(p1).cross(p3.subtract(p2)).unit();
+            return this.subtract(this.subtract(p1).proj(n_cap));
+        }
+    }
+
+    prod(vector){
+        return this.operate(vector, (c1, c2)=>c1*c2);
     }
 
     static coplaner(points){
@@ -202,4 +200,4 @@ class Vector extends Array{
     }
 }
 
-module.exports = { Vector };
+module.exports = Vector;

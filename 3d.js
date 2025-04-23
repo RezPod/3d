@@ -1,7 +1,19 @@
+
+// const Vector = require("./vector.js") 
+
+// const Vector = require("./vector");
+
 const IS_BEHIND = 1;
 const IS_IN_FRONT= 2;
 const IS_INTERSECTING = 3;
 const IS_ON = 4
+
+function rgbacolor(r, g, b, a){
+    return "rgba(" 
+    + [r, g, b, a]
+    .join(",")
+    + ")"
+}
 
 class Project3D{
     static dotProduct(normal, point){
@@ -344,6 +356,9 @@ class Canvas3D{
             polygons: [],
             images: []
         };
+
+        this.lightSourcePosition = new Vector(0, 0, 500);
+
         this.displayPerspective();
 
         // this.showPerspectiveIndicator();
@@ -466,7 +481,7 @@ class Canvas3D{
         this.shapes.lines.push({coords:[x1, y1, z1, x2, y2, z2], shapeId:shapeId, color:color});
     }
 
-    drawAxis(length){
+    drawAxis(length=400){
         this.drawLine(0, 0, 0, length, 0, 0);
         this.drawLine(0, 0, 0, 0, length, 0);
         this.drawLine(0, 0, 0, 0, 0, length);
@@ -474,20 +489,71 @@ class Canvas3D{
 
     drawPolygon(coords, fillColor, drawBorders, shapeId){
         const path = new Path2D();
-        path.moveTo(...this.toCoords(...coords[0]))
-        coords.slice(1).forEach(c=>{
-            path.lineTo(...this.toCoords(...c));
+        
+        const canvasCoords = coords.map(c=>this.toCoords(...c));
+
+        path.moveTo(...canvasCoords[0])
+       
+        canvasCoords.slice(1).forEach(c=>{
+            path.lineTo(...c);
         });
+
         path.closePath();
 
         if(fillColor){
-            this.ctx.fillStyle=fillColor;
+
+            // const center = [0, 0];
+
+            // canvasCoords.slice(0, canvasCoords.length-1).forEach(c=>{
+            //     center[0] += c[0];
+            //     center[1] += c[1];
+            // })
+
+            // center[0] = center[0]/(canvasCoords.length-1);
+            // center[1] = center[1]/(canvasCoords.length-1);
+
+            // const maxRadius = canvasCoords.reduce((m, c)=>{
+            //     let r = Math.hypot(c[0]-center[0], c[1]-center[1]);
+            //     if(r>m) m = r;
+            //     return m;
+            // }, 0)
+
+            // const gradient = this.ctx.createRadialGradient(...center, 1, ...center, maxRadius*0.8);
+
+            coords = coords.map(c=>new Vector(...c));
+
+            // const lightSourceImage = this.cameraPosition; // this.lightSourcePosition.image(...coords.slice(0, 3));
+            const lightSourcePosition = new Vector(...this.cameraPosition)
+            const lightSourceImage = lightSourcePosition.image(...coords.slice(0, 3));
+            const distanceFromFacePlane = lightSourceImage.distance(lightSourcePosition);
+            const lsic = this.toCoords(...lightSourceImage); //lightSourceImageCanvasCoords
+
+            const maxRadius = canvasCoords.reduce((m, c)=>{
+                let r = Math.hypot(c[0]-lsic[0], c[1]-lsic[1]);
+                if(r>m) m = r;
+                return m;
+            }, 0)
+
+
+            const gradient = this.ctx.createRadialGradient(...lsic, 1, ...lsic, maxRadius);
+
+            // Add three color stops
+            const lightIntensity = Math.floor(255 * (1200-distanceFromFacePlane)/1200)
+            gradient.addColorStop(0, rgbacolor(lightIntensity, lightIntensity, lightIntensity, 1));
+            // gradient.addColorStop(0.9, "white");
+            gradient.addColorStop(1, fillColor);
+
+            // Set the fill style and draw a rectangle
+            this.ctx.fillStyle = gradient;
+            // ctx.fillRect(20, 20, 160, 160);
+
+            // this.ctx.fillStyle=fillColor;
             this.ctx.fill(path);
         }
 
-        if(drawBorders){
-            this.ctx.stroke(path);
-        }
+        // if(drawBorders){
+        //     this.ctx.stroke(path);
+        // }
         
         this.shapes.polygons.push({coords, fillColor, drawBorders, shapeId});
 
@@ -599,14 +665,14 @@ class Canvas3D{
                     p2,
                     Project3D.addVectors(p2, Project3D.scalerProd(height, normal_vector)),
                     Project3D.addVectors(p1, Project3D.scalerProd(height, normal_vector)),
-                ], fillColor)
+                ], fillColor, false)
             } else {
                 this.drawPolygon([
                     origin_vector,
                     p2,
                     Project3D.addVectors(p2, Project3D.scalerProd(height, normal_vector)),
                     Project3D.addVectors(origin_vector, Project3D.scalerProd(height, normal_vector)),
-                ], fillColor, true)
+                ], fillColor, false)
             }
             p1=[...p2]
         }
@@ -616,10 +682,10 @@ class Canvas3D{
             p2,
             Project3D.addVectors(p2, Project3D.scalerProd(height, normal_vector)),
             Project3D.addVectors(origin_vector, Project3D.scalerProd(height, normal_vector)),
-        ], fillColor, true);
+        ], fillColor, false);
 
-        this.drawPolygon(coords, fillColor, true); 
-        this.drawPolygon(coords.map(c=>Project3D.addVectors(c, Project3D.scalerProd(height, normal_vector))), fillColor, true); 
+        this.drawPolygon(coords, fillColor, false); 
+        this.drawPolygon(coords.map(c=>Project3D.addVectors(c, Project3D.scalerProd(height, normal_vector))), fillColor, false); 
         this.refresh();
     }
 
@@ -656,7 +722,7 @@ class Canvas3D{
                     p2,
                     p4,
                     p3,
-                ], fillColor);
+                ], fillColor, edges);
             }
 
             coords1.push(p2);

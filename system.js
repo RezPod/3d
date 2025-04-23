@@ -1,95 +1,6 @@
 
-const {Vector} = require("./vector.js");
-const {Solid} = require("./solid.js");
-
-const cuboid = [
-    [0, 0, 0], 
-    [200, 0, 0], 
-    [200, 100, 0], 
-    [0, 100, 0], 
-    // [0, 0, 0],
-    [0, 0, 100], 
-    [200, 0, 100], 
-    [200, 100, 100], 
-    [0, 100, 100], 
-    // [0, 0, 100]
-    // [50, 50, 50]
-]
-
-const pyramid4 = [
-    [0, 0, 0],
-    [100, 0, 0],
-    [100, 100, 0],
-    [0, 100, 0],
-    [50, 50, 100]
-]
-
-const pyramid3 = [
-    [0, 0, 0],
-    [100, 0, 0],
-    [0, 100, 0],
-    [50, 50, 100]
-]
-
-const pyramid5 = [
-    [0, 0, 0],
-    [100, 0, 0],
-    [150, 75, 0],
-    [75, 150, 0],
-    [0, 100, 0],
-
-    [50, 50, 100]
-]
-
-const prism3 = [
-    [0, 0, 0],
-    [100, 0, 0],
-    [0, 100, 0],
-
-    [0, 0, 100],
-    [100, 0, 100],
-    [0, 100, 100],
-]
-
-const prismPyramid = [
-    [0, 0, 0], 
-    [100, 0, 0], 
-    [100, 100, 0], 
-    [0, 100, 0], 
-    // [0, 0, 0],
-    [25, 25, 100], 
-    [75, 25, 100], 
-    [75, 75, 100], 
-    [25, 75, 100], 
-    // [0, 0, 100]
-]
-
-const prismPyramidTilted = [
-    [0, 0, 0], 
-    [100, 0, 0], 
-    [100, 100, 0], 
-    [0, 100, 0], 
-    // [0, 0, 0],
-    [25, 25, 100], 
-    [125, 25, 100], 
-    [125, 125, 100], 
-    [25, 125, 100], 
-    // [0, 0, 100]
-]
-
-const prism5 = [
-    [0, 0, 0], 
-    [100, 0, 0], 
-    [125, 75, 0], 
-    [75, 125, 0], 
-    [0, 100, 0],
-    
-    [0, 0, 100], 
-    [100, 0, 100], 
-    [125, 75, 100], 
-    [75, 125, 100], 
-    [0, 100, 100]
-]
+const Vector = require("./vector.js");
+const Solid = require("./solid.js");
 
 let vertecies = [
     [0, 0, 0], 
@@ -110,6 +21,26 @@ let vertecies = [
     // [0, 50, 100]
 ]
 
+const pyramid3 = [
+    [0, 0, 0],
+    [100, 0, 0],
+    [0, 100, 0],
+    [50, 50, 100]
+]
+
+const prismPyramid = [
+    [0, 0, 0], 
+    [100, 0, 0], 
+    [100, 100, 0], 
+    [0, 100, 0], 
+    // [0, 0, 0],
+    [25, 25, 100], 
+    [75, 25, 100], 
+    [75, 75, 100], 
+    [25, 75, 100], 
+    // [0, 0, 100]
+]
+
 function rgbacolor(r, g, b, a){
     return "rgba(" 
     + [r, g, b, a]
@@ -117,73 +48,13 @@ function rgbacolor(r, g, b, a){
     + ")"
 }
 
-let collisionCount = 0;
-function incrementCollisions(){
-    document.getElementById("collisions").textContent = Number(document.getElementById("collisions").textContent) + 1;
-}
-
-async function updateState(targetName, t, r, v, a, dt, dr, ptime, w1){
-    document.getElementById(targetName).innerHTML = `
-    <span style="font-weight:bold">${targetName}</span>
-    <br>
-    t: ${t.toFixed(2)} sec
-    <br>
-    r: ${r.map(c=>c.toFixed(2)).join(", ")} 
-    <br>
-    v: ${v.map(c=>c.toFixed(2)).join(", ")} <span style="color:blue">[${v.magnitude().toFixed(2)} m/s]</span>
-    <br>
-    a: ${a.map(c=>c.toFixed(2)).join(", ")} <span style="color:yellow">[${a.magnitude().toFixed(2)} m/s^2]</span>
-    <br>
-    dt: ${dt.toFixed(3)} sec
-    <br>
-    dr: ${dr.map(c=>c.toFixed(2)).join(", ")} [${dr.magnitude().toFixed(2)} m]
-    <br>
-    KE: ${(v.magnitude()**2/2).toFixed(2)} Joules
-    <br>
-    PE: ${(10*r[2]).toFixed(2)} Joules
-    <br>
-    Total Energy: <span style="color:red"> ${(v.magnitude()**2/2+10*r[2]).toFixed(2)} Joules </span>
-    <br>
-    Process Time: ${ptime} ms
-    <br>
-    w: ${w1.map(c=>c.toFixed(2)).join(", ")} <span style="color:brown">[${w1.magnitude().toFixed(2)} rad/s]</span>
-    `
-    // const dx = 20*dt;
-    // const x = 20*t;
-
-    // const TE = v.magnitude()**2/2+10*r[2];
-    // plots[targetName][3].add(x, Math.max(10*Math.log2(TE), 0));
-    // plots[targetName][0].add(x, r[2]);
-    // plots[targetName][1].add(x, v.magnitude());
-    // plots[targetName][2].add(x, a.magnitude());
-
-    // if(x > 400){
-    //     // energyPlot = energyPlot.move(-dx);
-    //     // elivationPlot = elivationPlot.move(-dx);
-
-        
-    //     stateCanvas.changePerspectiveTo(
-    //         [stateCanvas.alpha, stateCanvas.beta], 
-    //         new Vector(...stateCanvas.cameraPosition).add([dx/2, 0, 0])
-    //     );
-    //     plots[targetName] = plots[targetName].map(p=>p.move(-dx/2))
-        
-    //     // plots.forEach(p=>p.show());
-    //     // energyPlot.show();
-    //     // elivationPlot.show();
-    // }
-    
-}
-
-
 const rad = (deg)=>2*Math.PI*(deg/360);
 
-const drag = 0.0;
+const drag = 0.2;
 const windForce = new Vector(0, 0, 0);
-const g = new Vector(0, 0, -10);
+const g = new Vector(0, 0, -0);
 const springConstant = 1*0;
 const springHinge = new Vector(200, 0, 200);
-
 
 const q1 = 80e-3;
 const q2 = -3e-3;
@@ -193,51 +64,22 @@ const orbitRadius = 100
 
 const containerBox = new Solid(vertecies, "container");
 containerBox.scale(4);
-containerBox.moveTo([200, 0, 200]);
+containerBox.moveTo([200, 200, 200]);
 // containerBox.rotate(new Vector(1, 1, 1).scale(Math.PI/6));
 const r2 = containerBox.center();
 
 const angle = rad(0);
 
 const u = new Vector(
-        Math.cos(angle),
-        0,   
-        Math.sin(angle)
+    Math.cos(angle),
+    0,   
+    Math.sin(angle)
 ).scale(
     // Math.abs(1*eC/orbitRadius)**0.5
     60
 );
 
-let acceleration = (t, v, r) => {
-    const r12 = r.subtract(r2);
-    const electricForce = r12.unit().scale(
-        eC/(r12.magnitude()**2)
-    )
-
-    const springForce = r.subtract(springHinge).unit().scale(
-        // -(Math.random()-0.5)
-        -springConstant
-        *r.subtract(springHinge).magnitude()
-    );
-
-    return g
-    .add(springForce)
-    // .add(electricForce)
-    .add(windForce)
-    .add(
-        v.scale(-drag)
-    );
-};
-
 let angularVelocity = new Vector(0, 0, 1).scale(Math.PI/4);
-
-function playBang() {
-    (new Audio("/bang.mp3")).play();
-}
-
-function playDing() {
-    (new Audio("/ding.mp3")).play();
-}
 
 const bounderies = [{
     r0:new Vector(0, 0, 0), 
@@ -272,35 +114,112 @@ function registerCollisionBetween(s1, s2){
     ])
 }
 
-let solid1 = new Solid(vertecies, "solid1");
-solid1.scale(0.2);
-solid1.live(
-    new Vector(200, 0, 200),
-    u, 
-    acceleration,
-    (s, r, v, a, w1) => {},
-    (t, r, v, a, dt, dr, ptime, w1)=>{},
-    bounderies,
-    (t, r, v, b)=>registerCollisionBetween(solid1, containerBox),
-    angularVelocity,
-    containerBox
-)
-livingSolids.push(solid1);
+const particles = []; 
+const size = 5;
+const grid = 3;
 
-let solid2 = new Solid(vertecies, 'solid2');
-solid2.scale(0.2);
-solid2.live(
-    new Vector(200, 0, 100),
-    u.add([0, 0, 0]), 
-    acceleration,
-    (s, r, v, a, w1) => {},
-    (t, r, v, a, dt, dr, ptime, w1)=>{},
-    bounderies,
-    (t, r, v, w)=>registerCollisionBetween(solid1, containerBox),
-    angularVelocity.scale(6),
-    containerBox
-)
-livingSolids.push(solid2);
+const bondConstant = 200000;
+const p_space = 20;
+
+function bondForce(p1, p2){
+    const r12 = p1.center().subtract(p2.center());
+    if(r12.magnitude() > p_space * (p1.maxRadius + p2.maxRadius)){
+        return r12.unit().scale(- (2**1.5)*bondConstant/r12.magnitude()**2)
+    } else {
+        return r12.unit().scale(+bondConstant/r12.magnitude()**2)
+    }
+}
+
+let accelerationBlocked = true;
+
+let acceleration = (p, t, v, r) => {
+
+    if(accelerationBlocked){
+        return Vector.zero();
+    }
+
+    const r12 = r.subtract(r2);
+    const electricForce = r12.unit().scale(
+        eC/(r12.magnitude()**2)
+    )
+
+    const bondF = livingSolids.reduce(
+        (a, p2) => {
+            if(p.name != p2.name)
+                a = a.add(bondForce(p, p2));
+            return a;
+        }
+        , Vector.zero()
+    )
+
+    const springForce = r.subtract(springHinge).unit().scale(
+        // -(Math.random()-0.5)
+        -springConstant
+        *r.subtract(springHinge).magnitude()
+    );
+
+    // F = rho * g * V 
+    // where,
+    // rho = fluid density (kg/m^3)
+    // g = gravity (m/s^-2)
+    // V = volume of the submerged object (m^3);
+
+    const bouyantForce = g.scale(-containerBox.density * p.volumeValue);
+
+    return g
+    .scale(p.mass)
+    .add(bondF)
+    .add(bouyantForce)
+    // .add(springForce)
+    // .add(electricForce)
+    // .add(windForce)
+    .add(v.scale(-drag))
+    .scale(1/p.mass);;
+};
+
+for(let i=1; i<=grid; i++){
+    const row = [];
+    for(let j=1; j<=grid; j++){
+        const stack = []
+        for(let k=1; k<=grid; k++){
+            let particle = new Solid(vertecies, `p[${i},${j},${k}]`);
+            particle.scale(size/100);
+            particle.moveTo(new Vector(50*i+70, 50*j+70, 50*k+20));
+
+            if(
+                false 
+                // ||
+                // (i==1 && j==1 && k==1) 
+                // || (i==3 && j==3 && k==3) 
+                // ||(i==2 && j==2 && k==2))
+            ){
+                particle.live(null, new Vector(1, 0, 0));
+            }
+            else 
+                particle.live();
+
+            // particle.inst_acceleration = acceleration;
+           
+            particle.containerSolid = containerBox;
+            particle.onCollision = () => registerCollisionBetween(particle, containerBox);
+            particle.inst_acceleration = acceleration;
+
+            livingSolids.push(particle);
+            stack.push(particle)
+        }
+        row.push(stack);
+    }
+    particles.push(row);
+}
+
+// livingSolids.forEach(async(s)=>{
+//     s.live();
+
+// });
+
+accelerationBlocked=false;
+
+console.log(particles);
 
 function checkCollisions(){
     // const minApproach = 20*3**0.5;
@@ -354,10 +273,20 @@ function checkCollisions(){
 
 setInterval(checkCollisions, 17);
 
+const systemTotalMass = livingSolids.reduce((t, s)=>t+s.mass, 0);
+
 function currentState(){
+    const centerOfMass = livingSolids.reduce(
+        (a, s)=> a.add(s.location.scale(s.mass)), 
+        Vector.zero()
+    ).scale(
+        1/systemTotalMass
+    );
+
     return {
         containerBox, 
         livingSolids,
+        centerOfMass
     }
 }
 
