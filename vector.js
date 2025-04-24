@@ -198,6 +198,13 @@ class Vector extends Array{
     
         return true;
     }
+
+    static unitz = new Vector(0, 0, 1)
+    static unitx = new Vector(1, 0, 0)
+    static unity = new Vector(0, 1, 0)
+    static xyplane = [Vector.zero(), Vector.unitx, Vector.unity];
+    static xzplane = [Vector.zero(), Vector.unitx, Vector.unitz];
+    static yzplane = [Vector.zero(), Vector.unity, Vector.unitz];
 }
 
 module.exports = Vector;

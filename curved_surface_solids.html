@@ -8,7 +8,7 @@
         <script src="/3d.js"></script>
     </head>
     <body>
-        <canvas id="view" width="700" height="600" style="background-color: skyblue;"></canvas>
+        <canvas id="view" width="1300" height="750" style="background-color: skyblue;"></canvas>
         <div>perspective:<span id="perspective"></span></div>
         <div>origin:<span id="origin"></span></div>
         <div>pointer:<span id="pointer"></span></div>
@@ -18,6 +18,9 @@
             function isin(x, [min, max]){
                 return x>=min && x<=max;
             }
+
+            const degrees = (rad) => 360*rad/(2*Math.PI);
+            const radians = (deg) => deg*(2*Math.PI)/360;
 
             class Perspective extends Vector{
                 constructor(x, y, z){
@@ -54,22 +57,44 @@
                 }
             }
 
+            class Trajectory {
+                static for(x, y, z, t_range, with_dt=1, with_color="black"){
+                    const componentSegments = [];
+
+                    for(let t=t_range[0]; t<t_range[1]; t += with_dt){
+                        componentSegments.push(
+                            new LineSegment(
+                                [x(t), y(t), z(t)],
+                                [x(t+with_dt), y(t+with_dt), z(t+with_dt)],
+                                with_color
+                            )
+                        );
+                    }
+
+                    return componentSegments;
+                }
+            }
+
+
             class Surface extends Object{
-                constructor(x, y, z, u_range, v_range, tangentFuncs, color="gold", smoodhness=1){
+                constructor(x, y, z, u_range, v_range, tangentFunc, color="gold", smoodhness=1){
                     super();
                     this.x = x;
                     this.y = y;
                     this.z = z;
-                    
+
                     this.u_range = u_range;
                     this.v_range = v_range;
 
-                    this.tangentFuncs = tangentFuncs;
+                    this.tangentFunc = tangentFunc;
 
                     this.color = color; 
 
                     this.du = (u_range[1]-u_range[0]) / (9 + smoodhness);
                     this.dv = (v_range[1]-v_range[0]) / (9 + smoodhness);
+
+                    this.u_range[1] = this.u_range[1] - this.u_range[1]%this.du;
+                    this.v_range[1] = this.v_range[1] - this.v_range[1]%this.dv;
 
                     this.boundary =  this.perimeter();
                 }
@@ -85,11 +110,14 @@
                     let edge1 = [];
                     for(let u = this.u_range[0]; u<=this.u_range[1]; u+=du){
                         edge1.push(
-                            new Vector(
-                                this.x(u, v_range[0]), 
-                                this.y(u, v_range[0]), 
-                                this.z(u, v_range[0])
-                            )
+                            [
+                                [u, v_range[0]],
+                                new Vector(
+                                    this.x(u, v_range[0]), 
+                                    this.y(u, v_range[0]), 
+                                    this.z(u, v_range[0])
+                                )
+                            ]
                         )
                     }
                     edge = [...edge, ...edge1];
@@ -97,208 +125,134 @@
                     let edge2 = [];
                     for(let v = this.v_range[0]; v<=this.v_range[1]; v+=dv){
                         edge2.push(
-                            new Vector(
-                                this.x(u_range[1], v), 
-                                this.y(u_range[1], v), 
-                                this.z(u_range[1], v)
-                            )
+                            [
+                                [u_range[1], v],
+                                new Vector(
+                                    this.x(u_range[1], v), 
+                                    this.y(u_range[1], v), 
+                                    this.z(u_range[1], v)
+                                )
+                            ]
                         )
                     }
                     edge = [...edge, ...edge2];
 
                     let edge3 = [];
-                    for(let u = this.u_range[1]; u>=this.u_range[0]; u-=du){
+                    for(let u = this.u_range[0]; u<=this.u_range[1]; u+=du){
                         edge3.push(
-                            new Vector(
-                                this.x(u, v_range[1]), 
-                                this.y(u, v_range[1]), 
-                                this.z(u, v_range[1])
-                            )
+                            [
+                                [u, v_range[1]],
+                                new Vector(
+                                    this.x(u, v_range[1]), 
+                                    this.y(u, v_range[1]), 
+                                    this.z(u, v_range[1])
+                                )
+                            ]
                         )
                     }
-                    edge = [...edge, ...edge3];
+                    edge = [...edge, ...edge3.map((p, i)=>edge3[edge3.length-1-i])];
 
                     let edge4 = [];
-                    for(let v = this.v_range[1]; v>=this.v_range[0]; v-=dv){
+                    for(let v = this.v_range[0]; v<=this.v_range[1]; v+=dv){
                         edge4.push(
-                            new Vector(
-                                this.x(u_range[0], v), 
-                                this.y(u_range[0], v), 
-                                this.z(u_range[0], v)
-                            )
+                            [
+                                [u_range[0], v],
+                                new Vector(
+                                    this.x(u_range[0], v), 
+                                    this.y(u_range[0], v), 
+                                    this.z(u_range[0], v)
+                                )
+                            ]
                         )
                     }
-                    edge = [...edge, ...edge4];
+                    edge = [...edge, ...edge4.map((p, i)=>edge4[edge4.length-1-i]), edge[0]];
 
                     return edge;
                 }
 
                 project(from){
-                    const tangents = [];
 
-                    const polygons = [];
+                    const tangent = [];
 
-                    for(let vfunc of this.tangentFuncs){
-                        // const vfunc=(u) => (from[0]/from[1])*u;
-                        const tangent = [];
-
-                        let v, u;
-                        // if(isin(Math.floor(vfunc(from, this.u_range[0])), this.v_range)){
-                        if(isin(vfunc(from, this.u_range[0]), this.v_range)){                            
-                            for(u = this.u_range[0]; u<=this.u_range[1]; u+=this.du){
-                                v = vfunc(from, u)
-                                // if(!isin(Math.floor(v), this.v_range)){
-                                if(!isin(v, this.v_range)){
-                                    break;
-                                }
-
-                                tangent.push([
-                                    this.x(u, v), 
-                                    this.y(u, v), 
-                                    this.z(u, v)
-                                ])
-                            }
-                        // } else if(isin(Math.floor(vfunc(from, this.u_range[1])), this.v_range)){
-                        } else if(isin(vfunc(from, this.u_range[1]), this.v_range)){
-                            for(u = this.u_range[1]; u>=this.u_range[0]; u-=this.du){
-                                v = vfunc(from, u)
-                                // if(!isin(Math.floor(v), this.v_range)){
-                                if(!isin(v, this.v_range)){
-                                    break;
-                                }
-
-                                tangent.push([
-                                    this.x(u, v), 
-                                    this.y(u, v), 
-                                    this.z(u, v)
-                                ])
-                            }
+                    for(let u = this.u_range[0]; u <= this.u_range[1]; u += this.du){
+                        let v = this.tangentFunc(from, u)
+                        
+                        if(!isin(v, this.v_range)){
+                            continue;
                         }
-
-                        // v = Math.round(v);
-
-                        // if(v <= this.v_range[1]){
-                        //     let polygon1 = [...this.edges[0]];
-                        //     this.edges[1].filter(p=>p[1]<=v).forEach(p=>polygon1.push(p));
-                        //     polygon1 = [
-                        //         ...polygon1, 
-                        //         ...tangent.map((p, i)=>tangent[tangent.length-i-1])
-                        //     ]
-                        //     polygon1 = new Polygon(polygon1, this.color);
-                        //     polygons.push(polygon1);
-
-                        //     let polygon2 = [...tangent];
-                        //     this.edges[1].filter(p=>p[1]>=v).forEach(p=>polygon2.push(p));
-                        //     polygon2 = [
-                        //         ...polygon2, 
-                        //         ...this.edges[2],
-                        //         ...this.edges[3]
-                        //     ]
-                        //     polygon2 = new Polygon(polygon2, this.color);
-                        //     polygons.push(polygon2);
-
-                        // } else if( u < this.u_range[1]){
-                        //     let polygon1 = [...this.edges[0], ...this.edges[1]];
-                        //     this.edges[2].filter(p=>p[0]>=u).forEach(p=>polygon1.push(p));
-                        //     polygon1 = [
-                        //         ...polygon1, 
-                        //         ...tangent.map((p, i)=>tangent[tangent.length-i-1])
-                        //     ]
-                        //     polygon1 = new Polygon(polygon1, this.color);
-                        //     polygons.push(polygon1);
-
-                        //     let polygon2 = [...tangent];
-                        //     this.edges[2].filter(p=>p[0]<=u).forEach(p=>polygon2.push(p));
-                        //     polygon2 = [
-                        //         ...polygon2, 
-                        //         ...this.edges[3]
-                        //     ]
-                        //     polygon2 = new Polygon(polygon2, this.color);
-                        //     polygons.push(polygon2);
-
-                        // }
-                        tangents.push(tangent);
+                        
+                        tangent.push([
+                            u,
+                            v, 
+                            this.x(u, v), 
+                            this.y(u, v), 
+                            this.z(u, v)
+                        ])
+                    }
+                    
+                    if( tangent.length < 5){
+                        return [tangent, [new Polygon(this.boundary.map(p=>p[1]), this.color)]];
                     }
 
-                    if(tangents[0].length<2){
-                        return [tangents, [new Polygon(this.boundary, this.color)]];
-                    }
+                    let polygons = [];
 
-                    let i=0;
-                    let polygon1=[], polygon2=[];
-                    let tangent = tangents[0];
+                    const closestPoints = this.boundary.reduce((a, p, i)=>{
+                        const d1 = Math.hypot(
+                            tangent[0][0] - p[0][0], 
+                            tangent[0][1] - p[0][1]
+                        );
+                        const d2 = Math.hypot(
+                            tangent[tangent.length-1][0] - p[0][0],
+                            tangent[tangent.length-1][1] - p[0][1]
+                        );
 
-                    let flag = 0;
-                    let flag2 = true;
-
-                    while(i<this.boundary.length){
-                        const p = this.boundary[i];
-
-                        if(flag2){
-                            if(
-                                Math.abs(tangent[0][0]-p[0])<=this.du/2
-                                && Math.abs(tangent[0][1]-p[1])<=this.dv/2
-                            ){
-                                if(flag==0){
-                                    flag = 1;
-                                    polygon1 = [
-                                        ...polygon1, 
-                                        p,
-                                        ...tangent,
-                                    ];
-                                } else if(flag==1){
-                                    flag=2;
-                                    polygon2 = [
-                                        ...polygon2,
-                                        p,
-                                        ...tangent
-                                    ]
-                                }
-                                i+=1;
-                                flag2=false;
-                                continue;
-                            } else if(
-                                Math.abs(tangent[tangent.length-1][0]-p[0])<=this.du/2
-                                && Math.abs(tangent[tangent.length-1][1]-p[1])<=this.dv/2
-                            ){
-                                if(flag==0){
-                                    flag = 1;
-                                    polygon1 = [
-                                        ...polygon1, 
-                                        p,
-                                        ...tangent.map((p, i)=>tangent[tangent.length-1-i])
-                                    ];
-                                } else if(flag==1){
-                                    flag=2;
-                                    polygon2 = [
-                                        ...polygon2,
-                                        p,
-                                        ...tangent.map((p, i)=>tangent[tangent.length-1-i])
-                                    ]
-                                }
-                                i+=1;
-                                flag2 = false;
-                                continue;
-                            }
+                        if(d1 < a[0][0]){
+                            a[0][0] = d1;
+                            a[0][1] = i;
                         }
 
-                        flag2=true;
-
-                        if(flag==0){
-                            polygon1.push(this.boundary[i]);
-                        } else if (flag==1){
-                            polygon2.push(this.boundary[i]);
-                        } else if(flag==2){
-                            polygon1.push(this.boundary[i]);
+                        if(d2 < a[1][0]){
+                            a[1][0] = d2;
+                            a[1][1] = i;
                         }
 
-                        i+=1;
+                        return a;
+                    }, [
+                        [Infinity, 0], 
+                        [Infinity, 0]
+                    ])
+
+                    if(closestPoints[0][1] < closestPoints[1][1]){
+                        polygons.push([
+                            ...this.boundary.slice(0, closestPoints[0][1] + 1).map(p=>p[1]), 
+                            ...tangent.map(p=>p.slice(2)),
+                            ...this.boundary.slice(closestPoints[1][1]).map(p=>p[1])
+                        ]);
+
+                        polygons.push([
+                            ...this.boundary.slice(closestPoints[0][1], closestPoints[1][1]).map(p=>p[1]), 
+                            ...tangent.reverse().map(p=>p.slice(2)),
+                        ]);
+                    } else if(closestPoints[0][1] > closestPoints[1][1]){
+                        polygons.push([
+                            ...this.boundary.slice(0, closestPoints[1][1] + 1).map(p=>p[1]), 
+                            ...tangent.reverse().map(p=>p.slice(2)),
+                            ...this.boundary.slice(closestPoints[0][1]).map(p=>p[1])
+                        ]);
+
+                        polygons.push([
+                            ...this.boundary.slice(closestPoints[1][1], closestPoints[0][1]).map(p=>p[1]), 
+                            ...tangent.reverse().map(p=>p.slice(2)),
+                        ]);
                     }
 
-                    return [tangents, [polygon1, polygon2].map(p=>new Polygon(p, this.color))];
+                    return [
+                        tangent.map(p=>new Vector(...p.slice(2))), 
+                        polygons.map(p=> new Polygon(p, this.color))
+                    ];
                 }
 
-                generatePolygons(){
+                polygons(){
                     polygons = [];
                     let du = this.du;
                     let dv = this.dv;
@@ -319,6 +273,46 @@
                     }
 
                     return polygons;
+                }
+            }
+
+            class Sphere extends Surface{
+                constructor(center, radius, color, smoodhness){
+                    
+                    super(
+                        (u, v)=> radius * Math.cos(v)*Math.cos(u),
+                        (u, v)=> radius * Math.cos(v)*Math.sin(u),
+                        (u, v)=> radius * Math.sin(v),
+                        [0, 2.1*Math.PI],
+                        [-Math.PI/2, Math.PI/2],    
+                        (f, u)=> Math.atan(
+                            -(Math.cos(u)*f[0] + Math.sin(u)*f[1]) / f[2]
+                        ),
+                        color,
+                        smoodhness ? smoodhness : 120
+                    );
+
+                    this.center = center;
+                    // this.boundary =  super.perimeter().map(p=>[p[0], p[1].add(this.center)]);
+                }
+
+                project(from){
+                    const [tangent, polygons] = super.project(from);
+                    return [
+                        tangent.map(p=>p.add(this.center)), 
+                        polygons.map(
+                            poly=>new Polygon(poly.corners.map(p=>p.add(this.center)), this.color)
+                        )
+                    ]
+                }
+                
+                polygons(){
+                    return super.polygons().map(
+                        poly => new Polygon(
+                            poly.corners.map(p=>p.add(this.center)), 
+                            super.color
+                        )
+                    )
                 }
             }
 
@@ -445,7 +439,7 @@
                             } else if (e instanceof Surface){
 
                                 return  e.boundary.reduce(
-                                    (a, v)=> {
+                                    (a, [_, v])=> {
                                         const d = Math.abs(
                                             v.subtract(
                                                 this.persp
@@ -524,15 +518,17 @@
                 }
 
                 renderSurface(s){
-                    const [tangents, polygons]= s.project(this.persp);
+                    const [tangent, polygons]= s.project(this.persp);
 
-                    s.boundary.slice(1).forEach((p, i)=>this.renderLineSegment(new LineSegment(s.boundary[i], p)));
+                    // s.boundary.slice(1).forEach((p, i)=>this.renderLineSegment(new LineSegment(s.boundary[i][1], p[1])));
 
-                    tangents[0].slice(1).forEach((p, i)=>this.renderLineSegment(new LineSegment(tangents[0][i], p)))
+                    // tangent.slice(1).forEach((p, i)=>this.renderLineSegment(new LineSegment(tangent[i], p)));
 
-                    // tangents[0].map(p=>this.renderLineSegment(new LineSegment(this.persp, p)))
+                    // this.renderPolygon(new Polygon([...tangents[0], tangents[0][0]], s.color));
+                    // tangent.map(p=>this.renderLineSegment(new LineSegment(this.persp, p)))
 
-                    polygons.forEach(p=>this.renderPolygon(p));
+                    // polygons[1].corners.slice(1).map((p, i)=>this.renderLineSegment(new LineSegment(polygons[1].corners[i], p)));
+                    polygons.slice(0, 2).forEach(p=>this.renderPolygon(p));
                 }
 
                 render(scene){                    
@@ -577,56 +573,74 @@
 
             solid.scale(200);
 
-            const surface = new Surface(
-                // (u, v)=> u,
-                // (u, v)=> v,
-                // (u, v)=> (u**2 + v**2)/100,
-                // [-100, 100],
-                // [-100, 100],  
-                // [(f, u)=> (100*f[2] - 2*u*f[0])/(2*f[1])],
+            // (u, v)=> u,
+            // (u, v)=> v,
+            // (u, v)=>(u**2 + v**2)/100,
+            // [-100, 100],
+            // [-100, 100],  
+            // (f, u)=> (100*f[2] - 2*u*f[0])/(2*f[1]),
 
-                (u, v)=> 100*Math.cos(v)*Math.cos(u),
-                (u, v)=> 100*Math.cos(v)*Math.sin(u),
-                (u, v)=> 100*Math.sin(v),
-                [0, Math.PI/2],
-                [0, Math.PI/2],  
-                [(f, u)=> Math.atan(
-                    -(Math.cos(u)*f[0] + Math.sin(u)*f[1]) / f[2]
-                )],
-                "red",
-                10
+            // (u, v)=> u,
+            // (u, v)=> v,
+            // (u, v)=> (100**2 - v**2)**0.5, //(u**2 + v**2)/100
+            // [-100, 100],
+            // [-100, 100],  
+            // (f, u)=> f[2]*100/((f[2]**2 + f[1]**2)**0.5), //(100*f[2] - 2*u*f[0])/(2*f[1])],
+
+            const surface = new Surface(
+                (u, v)=> v**2/100,
+                (u, v)=> u**2/100,
+                (u, v)=> u+v,
+                [0, 300],
+                [0, 300],    
+                (f, u)=> Math.atan(
+                    -f[0]/f[1]
+                ),
+                "green",
+                100
             )
 
+            const persp = new Perspective(400, 400, 400);
             const scene = [
-                new LineSegment([-100, 0, 0], [100, 0, 0]),
-                new LineSegment([0, -100, 0], [0, 100, 0]),
-                new LineSegment([0, 0, -100], [0, 0, 200]),
-                surface
+                // new LineSegment([-100, 0, 0], [200, 0, 0]),
+                // new LineSegment([0, -100, 0], [0, 200, 0]),
+                // new LineSegment([0, 0, -100], [0, 0, 200]),
+                // new LineSegment(persp, Vector.zero()),
+                surface,
+                // new Sphere([0, 0, 100], 20, "blue", 100),
             ];
-            
+
             view.from(
-                new Perspective(400, 400, 400),
+                persp,
                 scene
             )
 
             view.ctx.canvas.onmousemove = (e) => {
                 if(e.altKey){
+                    let persp = view.persp.copy();
+                    persp = persp.rotate(Vector.unitz.scale(2*Math.PI*(e.movementX/360)/10));
+                    persp = persp.rotate(persp.cross(Vector.unitz).unit().scale(2*Math.PI*(e.movementY/360)/10));
+
                     view.from(
                         new Perspective(
-                            ...view.persp.add(
-                                [-e.movementX, 0, e.movementY]
-                            )
+                            ...persp
                         ),
                         scene
                     )
-                    document.getElementById("perspective").innerHTML = JSON.stringify(view.persp);
+                    document.getElementById("perspective").innerHTML = 
+                        persp.map(c=>c.toFixed(2)).join(', ') 
+                        +` [
+                            ${degrees(persp.image(...Vector.xyplane).angle(Vector.unitx)).toFixed(0)}, 
+                            ${90-degrees(persp.angle(Vector.unitz)).toFixed(0)}
+                        ]`;
+
                 } else if (e.ctrlKey) {
                     view.origin = view.origin.add([e.movementX, e.movementY, 0]);
                     view.render(scene);
-                    document.getElementById("origin").innerHTML = JSON.stringify(view.origin);
+                    document.getElementById("origin").innerHTML = " "+view.origin.map(c=>c.toFixed(2)).join(', ');
                 }
 
-                document.getElementById("pointer").innerHTML = view.isfor(e.offsetX, e.offsetY).map(c=>c.toFixed(2)).join(', ');
+                document.getElementById("pointer").innerHTML = " " + view.isfor(e.offsetX, e.offsetY).map(c=>c.toFixed(2)).join(', ');
             }
 
         </script>
