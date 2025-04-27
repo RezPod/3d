@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <script src="/util.js"></script>
+    <script src="/vector.js"></script>
+    <script src="/polygon.js"></script>
+    <script src="/solid.js"></script>
+    <script src="/3d.js"></script>
+    <script src="/view.js"></script>
+</head>
+<body>
+    <canvas 
+        id="view" 
+        width="1300" 
+        height="750" 
+        style="background-color: skyblue;"
+    ></canvas>
+
+    <div>perspective:<span id="perspective"></span></div>
+    <div>origin:<span id="origin"></span></div>
+    <div>pointer:<span id="pointer"></span></div>
+
+    <script>
+        const view = new View(document.getElementById("view"));
+
+        let A = 10;   
+        let phase = PI/2;
+
+        let frequency = 4; // hz(1/sec)
+        let wavelength = 343/frequency; // meters
+        let w = 2*PI*frequency; // angular-velocity = 2*PI/wavelength
+        let k = 2*PI/wavelength; // wave-number
+
+        let vmax = A * w;
+
+        const cube =  [
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [1, 1, 1],
+            [0, 1, 1],
+        ]
+
+        const cubes = new Array(30).fill(null).map(
+            (v, i) => {
+                let s = new Solid(cube);
+                s.scale(5);
+                return s;
+            }
+        )
+
+        let stopFlag = true
+
+        const acceleration = (s, t, v, r)=>{
+            if(stopFlag){
+                return v.scale(-1);
+            }
+
+            return Vector.unitz.scale(
+                - w*2
+                * r[2]
+            )
+        }
+
+        cubes.forEach(
+            (c, i)=>{
+                const r = new Vector(
+                    15*i,
+                    0,
+                    // y(t, x) = A sin(wt - kx + phi)
+                    A * sin(-k * 15 * i + phase),
+                )
+
+                c.live(
+                    r,
+                    Vector.unitz.scale(
+                        // v(t, x) = w A cos(wt - kx + phi)
+                        vmax * cos(-k * r[0] + phase)
+                    ),
+                    acceleration
+                )
+            }
+        )
+
+        stopFlag = false;
+
+        view.persp = new Perspective(400, 400, 0);
+        
+        const scene = [
+            new LineSegment(
+                Vector.unitx.scale(-0),
+                Vector.unitx.scale( 450),
+            ),
+            ...cubes
+        ]
+        
+        function render(){
+            requestAnimationFrame(render);
+            view.render(scene)
+        }
+
+        render()
+
+        view.interactive(scene, (newPersp, newOrigin, newPointer)=>{
+            
+            document.getElementById("perspective").innerHTML = 
+                " " 
+                + newPersp.map(c=>c.toFixed(2)).join(', ') 
+                +` [
+                ${
+                    degrees(newPersp.image(
+                        ...Vector.xyplane
+                    ).angle(
+                        Vector.unitx
+                    )).toFixed(0)
+                }, 
+                ${
+                    90 - degrees(
+                        newPersp.angle(
+                            Vector.unitz
+                        )
+                    ).toFixed(0)
+                }
+                ]`;
+            
+            document.getElementById("origin").innerHTML = (
+                " " + 
+                newOrigin.map(
+                    c=>c.toFixed(2)
+                ).join(
+                    ', '
+                )
+            );
+
+            document.getElementById("pointer").innerHTML = (
+                " " + 
+                newPointer.map(
+                    c=>c.toFixed(2)
+                ).join(
+                    ', '
+                )
+            );
+                
+        })
+
+    </script>
+</body>
+</html>

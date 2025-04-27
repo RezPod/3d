@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html>
+    <head>  
+        <style>
+            button{
+                padding: 20px 100px;
+                border-radius: 5px;
+                color: azure;
+                font-size: x-large;
+            }
+        </style>
+
+        <script src="util.js"></script>
+
+    </head>
+    <body>
+        <canvas id="view" width="800" height="700" style="background-color: skyblue;"></canvas>
+        <div>
+        <button onclick="clearAudio(); recordingFlag=true" style="background-color: green;">start</button>
+        <!-- <button onclick="recordingFlag=false; showAudio();" style="background-color: red;">stop</button>
+        <button onclick="showAudio();">show</button> -->
+        </div>
+        <script>
+            const canvas = document.getElementById("view");
+            const canvasCtx = canvas.getContext("2d");
+
+            let audioData = [];
+            let timeAmpData = [];
+            let recordingFlag = false;
+
+            function cluster(arr, it=100){
+                let c1 = Math.min(...arr);
+                let c2 = Math.max(...arr);
+
+                let groups=[[], []];
+
+                for(let i=0; i<it; i++){
+                    let ds1 = arr.map(e => Math.abs(e-c1))
+                    let ds2 = arr.map(e => Math.abs(e-c2))
+                    
+                    groups = arr.reduce(
+                        (a, e, j) => {
+                            if(ds1[j] <= ds2[j]) 
+                                a[0].push(j);
+                            else
+                                a[1].push(j);
+                            return a;
+                        }
+                       ,
+                        [[], []]
+                    );
+
+                    if(groups[0].length==0 || groups[1].length==0){
+                        break
+                    }
+
+                    let c1_new = groups[0].reduce((s, e)=>s+arr[e], 0)/groups[0].length;
+                    let c2_new = groups[1].reduce((s, e)=>s+arr[e], 0)/groups[1].length;
+                    
+                    if(Math.abs(c1_new-c1)<2 && Math.abs(c2_new-c2)<2){
+                        break;
+                    } else {
+                        c1 = c1_new;
+                        c2 = c2_new;
+                    }
+                }
+
+                return groups;
+            }
+
+            function feedAudio(freqAmpDataArray, timeAmpDataArray){
+                if(recordingFlag){
+                    audioData.push([Date.now(), [...freqAmpDataArray]]);
+                    timeAmpData.push([...timeAmpDataArray]);
+                }
+
+                if(audioData.length >= 160 && recordingFlag==true){
+                    recordingFlag=false;
+                    showAudio();
+                }
+            }
+
+            function clearAudio(){
+                audioData = [];
+                timeAmpData = [];
+            }
+
+            function processAudio(audioData){
+                const clusters = cluster(audioData.map(d=>d[1][0]));
+                // console.log(clusters);
+                
+                const means1 = audioData.reduce(
+                    (a, d, i) => {
+                        if(clusters[0].indexOf(i) != -1){ 
+                            a = a.map((v, j) => v + d[1][j])
+                        } 
+                        return a;
+                    }, new Array(256).fill(0)
+                ).map(v=>Math.round(v/clusters[0].length))
+
+                timeAmpData = timeAmpData.filter((d, i)=>clusters[1].indexOf(i) != -1);
+
+                audioData  = audioData.filter(
+                    (d, i)=>clusters[1].indexOf(i) != -1
+                ).map(
+                    d => [d[0], d[1].map((v, j) => Math.max(v - means1[j], 0))]
+                );
+
+                const t0 = audioData[0][0];
+
+                return audioData.map(d => [d[0]-t0, d[1]]);
+            }
+
+            function gainValue(v){
+                return analyser.minDecibels + ampRange * (v/256);
+            }
+
+            function playAudio(f=40){
+                const oscillator = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                oscillator.connect(gain);
+                oscillator.connect(audioCtx.destination);
+
+
+                oscillator.frequency.setValueAtTime(f, audioCtx.currentTime);
+                f -= 1;
+
+                audioData.forEach((d, i)=>{
+                    f+=1;
+                    console.log(i, d[0], f, gainValue(d[1][f]));
+                    gain.gain.setValueAtTime(gainValue(d[1][f]), audioCtx.currentTime + d[0]/1000);
+                })
+
+                oscillator.start();
+
+                setTimeout(
+                    ()=>{
+                        oscillator.stop(); 
+                        delete oscillator; 
+                        delete gain;
+                    }, 
+                    audioData[audioData.length-1][0]
+                );
+            }
+
+            function showAudio(func=(a)=>[4*a, 4*a, 4*a, 256]){
+                
+                audioData = processAudio(audioData);
+
+                const img = new ImageData(256, audioData.length);
+                
+                audioData.reduce(
+                    (a, r)=>[...a, ...r[1]], []
+                ).forEach(
+                    (c, i)=>func(c).forEach((v, j) => img.data[4*i+j]=v)
+                )
+
+                canvasCtx.clearRect(100, 450, 500, 500);
+                canvasCtx.putImageData(img, 100, 450);
+
+                playAudio();
+            }
+
+            const audioCtx = new AudioContext();
+            const analyser = audioCtx.createAnalyser();
+
+            const WIDTH = 800; 
+            const HEIGHT1 = 200;
+            const HEIGHT2 = 400;
+
+            analyser.fftSize = 512;
+            const ampRange = analyser.maxDecibels - analyser.minDecibels;
+            const bufferLength = analyser.frequencyBinCount;
+            const freqAmpDataArray = new Uint8Array(bufferLength);
+            const timeAmpDataArray = new Uint8Array(bufferLength);
+
+            canvasCtx.clearRect(0, 0, WIDTH, HEIGHT1);
+
+            navigator.mediaDevices.getUserMedia(
+                { audio: true }
+            ).then(stream=>{
+
+                const source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+
+                function draw() {
+                    drawVisual = requestAnimationFrame(draw);
+
+                    analyser.getByteFrequencyData(freqAmpDataArray);
+                    analyser.getByteTimeDomainData(timeAmpDataArray);
+                    
+                    feedAudio(freqAmpDataArray, timeAmpDataArray); 
+
+                    // console.log(Math.min(...timeAmpDataArray), Math.max(...timeAmpDataArray));
+                    // if(Math.min(...timeAmpDataArray)<127 || Math.max(...timeAmpDataArray)>128)
+                    //     console.log("freq:", Math.min(...freqAmpDataArray), Math.max(...freqAmpDataArray));
+                    
+                    canvasCtx.clearRect(0, 0, WIDTH, HEIGHT2);
+
+                    const barWidth = 2;
+                    let barHeight;
+                    let x = 10;
+
+                    
+                    canvasCtx.moveTo(x, 400);
+                    canvasCtx.beginPath();
+                    for (let i = 0; i < bufferLength; i++) {
+                        barHeight = freqAmpDataArray[i];
+
+                        canvasCtx.fillStyle = `rgb(${barHeight + 100} 50 50)`;
+                        canvasCtx.fillRect(x, HEIGHT1 - barHeight / 2, barWidth, barHeight / 2);
+
+                        canvasCtx.lineTo(x, HEIGHT2 - timeAmpDataArray[i] / 2);
+
+                        x += barWidth + 1;
+                    }
+                    canvasCtx.stroke();
+                }
+
+                draw();
+            })
+        </script>
+    </body>
+    
+</html>

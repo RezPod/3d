@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <script src="/util.js"></script>
+    <script src="/vector.js"></script>
+    <script src="/polygon.js"></script>
+    <script src="/solid.js"></script>
+    <script src="/3d.js"></script>
+    <script src="view.js"></script>
+</head>
+<body>
+    <canvas 
+        id="view" 
+        width="1300" 
+        height="750" 
+        style="background-color: skyblue;"
+    ></canvas>
+    
+    <div>perspective:<span id="perspective"></span></div>
+    <div>origin:<span id="origin"></span></div>
+    <div>pointer:<span id="pointer"></span></div>
+
+    <script>
+
+        
+
+        // const  k = 2*Math.PI/360;
+
+        // (u, v)=> 150 * sin(k*v),
+        // (u, v)=> 150 * cos(k*v),
+        // (u, v)=> u,
+        // [0, 190],
+        // [0, 364],    
+        // [
+        //     (f, u) => ((atan(-f[1]/f[0]) + 2*Math.PI)/k)%360,
+        //     (f, u) => ((atan(-f[1]/f[0]) + Math.PI)/k)%360
+        // ],
+
+        // (u, v)=> u,
+        // (u, v)=> v,
+        // (u, v)=>(u**2 + v**2)/100,
+        // [-100, 100],
+        // [-100, 100],  
+        // (f, u)=> (100*f[2] - 2*u*f[0])/(2*f[1]),
+
+        // (u, v)=> u,
+        // (u, v)=> v,
+        // (u, v)=> (100**2 - v**2)**0.5, //(u**2 + v**2)/100
+        // [-100, 100],
+        // [-100, 100],  
+        // (f, u)=> f[2]*100/((f[2]**2 + f[1]**2)**0.5), //(100*f[2] - 2*u*f[0])/(2*f[1])],
+
+        // (u, v)=> u,
+        //     (u, v)=> v,
+        //     (u, v)=> 100*(
+        //         // Math.sin(k*v)
+        //         Math.cos(k*v)
+        //     ),
+        //     [0, 180],
+        //     [-90, 180],    
+        //     (f, u) => 
+        //     // Math.acos(
+        //     //    f[2]/(100*k*f[1]) 
+        //     // )/k,
+        //     Math.asin(
+        //        -f[2]/(100*k*f[1]) 
+        //     )/k,
+
+        // (u, v)=> u,
+        //     (u, v)=> v,
+        //     (u, v)=> (u**0.5+v**0.5)**2,
+        //     [0, 200],
+        //     [0, 200],    
+        //     (f, u) => {
+        //         const b = (f[2]-f[1]-f[0])**2 - 2*f[0]*f[1];
+        //         return (
+        //             (u * b - (u**2 * b**2 - 4 * (u * f[0] * f[1])**2)**0.5)
+        //             /(2 * f[1]**2)
+        //         );
+        //     },
+        // (u, v)=> u,
+        //     (u, v)=> v,
+        //     (u, v)=> (100*(sin(k*u)+cos(k*v))),
+        //     [0, 200],
+        //     [0, 200],    
+        //     (f, u) => {
+        //         asin((f[0]*cos(k*u) - (f[2]/(100*k)))/f[1])/k
+        //     },
+
+        // (u, v)=> v,
+        //     (u, v)=> 100*(
+        //         // Math.sin(k*v)
+        //         Math.cos(k*v)
+        //     ),
+        //     [0, 180],
+        //     [-90, 180],    
+        //     [
+        //         (f, u) => 
+        //             Math.acos(
+        //             f[2]/(100*k*f[1]) 
+        //             )/k,
+        //         (f, u) => 
+        //         Math.asin(
+        //         -f[2]/(100*k*f[1]) 
+        //         )/k
+        //     ],
+
+        // (u, v)=> u,
+        //     (u, v)=> 5 * cos(k*v),
+        //     (u, v)=> 5 * sin(k*v),
+        //     [0, 190],
+        //     [0, 364],    
+        //     [
+        //         (f, u) => ((atan(-f[1]/f[2]) + 2*Math.PI)/k)%360,
+        //         (f, u) => ((atan(-f[1]/f[2]) + Math.PI)/k)%360
+        //     ], 
+
+        
+        // const surface = new Surface(
+            
+        //     "green",
+        //     100
+        // )
+        // const scene = [
+        //     // new LineSegment([-100, 0, 0], [200, 0, 0]),
+        //     // new LineSegment([0, -100, 0], [0, 200, 0]),
+        //     // new LineSegment([0, 0, -100], [0, 0, 200]),
+        //     // new LineSegment(persp, Vector.zero()),
+        //     // surface,
+        //     // new Sphere([0, 0, 0], 30, "blue", 200), // oxiygen
+        //     // new Sphere([58.71, -75.75, 0], 15, "gold", 200), //hydrogen
+        //     // new Sphere([58.71, 75.75, 0], 15, "gold", 200),  //hydrogen
+        // ];
+
+        // view.from(
+        //     persp,
+        //     scene
+        // )
+
+    </script>
+</body>
+</html>

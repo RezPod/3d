@@ -268,7 +268,7 @@ class Solid extends Object{
         onStateChange=()=>null,
         bounderies=[],
         onCollision=()=>null,
-        w = Vector.zero(),
+        angularVelocity = Vector.zero(),
         container = null
     )=>{
         this.birthTime = Date.now()/1000;
@@ -283,7 +283,7 @@ class Solid extends Object{
         this.onStateChange = onStateChange;
         this.bounderies = bounderies;
         this.onCollision = onCollision;
-        this.angularVelocity = w;
+        this.angularVelocity = angularVelocity;
         this.containerSolid = container;
 
         this.act();
