@@ -55,7 +55,7 @@ class Trajectory {
 }
 
 class Surface extends Object{
-    constructor(x, y, z, u_range, v_range, tangentFuncs, color="gold", smoodhness=1){
+    constructor(x, y, z, u_range, v_range, tangentFuncs, color="gold", smoodhness=11){
         super();
         this.x = x;
         this.y = y;
@@ -309,7 +309,7 @@ class Surface extends Object{
 }
 
 class Sphere extends Surface{
-    constructor(center, radius, color, smoodhness){
+    constructor(center, radius, color="gold", smoodhness=120){
         
         super(
             (u, v)=> radius * Math.cos(v)*Math.cos(u),
@@ -321,7 +321,7 @@ class Sphere extends Surface{
                 -(Math.cos(u)*f[0] + Math.sin(u)*f[1]) / f[2]
             )%(2*Math.PI)],
             color,
-            smoodhness ? smoodhness : 120
+            smoodhness
         );
 
         this.center = center;
@@ -351,13 +351,13 @@ class Sphere extends Surface{
 }
 
 class View {
-    constructor(targetCanvas){
+    constructor(targetCanvas, persp=new Perspective(1, 1, 1)){
         this.ctx = targetCanvas.getContext("2d");
 
         this.width = targetCanvas.width;
         this.height = targetCanvas.height;
 
-        this.persp = new Perspective(1, 1, 1);
+        this.persp = persp ? persp : new Perspective(500, 500, 500);
         this.origin = new Vector(this.width/2, this.height/2, 0);
         this.bindPointer();
     }
@@ -408,7 +408,7 @@ class View {
         );
 
         const distance = image.distance(this.persp);
-        const lsic = this.where(...image); //lightSourceImageCanvasCoords
+        const lsic = [this.width/2, this.height/2]; //this.where(...image); //lightSourceImageCanvasCoords
 
         const maxRadius = coords.reduce((m, c)=>{
             let r = Math.hypot(c[0]-lsic[0], c[1]-lsic[1]);
@@ -421,7 +421,7 @@ class View {
         );
 
         const intensity = Math.floor(255 * (1200-distance)/1200)
-        gradient.addColorStop(0, rgbacolor(intensity, intensity, intensity, 1));
+        gradient.addColorStop(0, rgbacolor(intensity, intensity, intensity, 0.3));
         gradient.addColorStop(1, p.color);
         
         this.ctx.fillStyle = gradient;
@@ -490,7 +490,6 @@ class View {
                         }, [Infinity, 0, []]
                     )
                 }
-
             }
         );
 
@@ -577,16 +576,34 @@ class View {
     render(scene){                    
         this.clear();
 
+        scene = scene.reduce((a, e)=> {
+            if(e instanceof Surface){
+                a = [...a, ...e.project(this.persp)[1]]
+            } else if (e instanceof Solid){
+                a = [
+                    ...a, 
+                    ...e.faces.map( 
+                        f => new Polygon(f.map(i=>e.corners[i]), e.color)
+                    )
+                ]
+            } else {
+                a.push(e);
+            }
+
+            return a;
+        }, [])
+
         for(let i of this.order(scene)){
             if(scene[i] instanceof LineSegment){
                 this.renderLineSegment(scene[i]);
             } else if (scene[i] instanceof Polygon){
                 this.renderPolygon(scene[i]);
-            } else if (scene[i] instanceof Solid){
-                this.renderSolid(scene[i]);
-            } else if(scene[i] instanceof Surface){
-                this.renderSurface(scene[i]);
-            }
+            } 
+            // else if (scene[i] instanceof Solid){
+            //     this.renderSolid(scene[i]);
+            // } else if(scene[i] instanceof Surface){
+            //     this.renderSurface(scene[i]);
+            // }
         }
     }
 
@@ -603,7 +620,8 @@ class View {
         this.ctx.canvas.onmousemove = (e) => this.curPointer = view.isfor(e.offsetX, e.offsetY);
     }
 
-    interactive(scene, onPerspChange){
+    interactive(scene, onPerspChange=()=>null, limits=[0, 90]){
+        this.render(scene);
         this.ctx.canvas.onmousemove = (e) => {
             if(e.altKey){
                 let persp = this.persp.copy();
@@ -623,8 +641,8 @@ class View {
                 );
 
                 if(
-                    degrees(persp.angle(Vector.unitz)) > 5 
-                    && degrees(persp.angle(Vector.unitz)) < 80
+                    degrees(persp.angle(Vector.unitz)) > limits[0]
+                    && degrees(persp.angle(Vector.unitz)) < limits[1]
                 ){
                     this.from(
                         new Perspective(
@@ -633,8 +651,7 @@ class View {
                         scene
                     )     
                 }
-            } 
-            else if (e.ctrlKey) {
+            } else if (e.ctrlKey) {
                 this.origin = view.origin.add([
                     e.movementX, 
                     e.movementY, 
@@ -648,5 +665,18 @@ class View {
 
             onPerspChange(this.persp, this.origin, this.curPointer);
         }
+    }
+
+    fromBirdsEye(scene, rate=1){
+        requestAnimationFrame(()=>this.fromBirdsEye(scene, rate));
+
+        this.from(
+            new Perspective(
+                ...this.persp.rotate(
+                    Vector.unitz.scale(rate*PI/180)
+                )
+            ),
+            scene
+        )
     }
 }

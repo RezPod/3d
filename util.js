@@ -32,6 +32,21 @@ const radians = (deg) => deg*(2*Math.PI)/360
 
 const PI = Math.PI
 
+function rgbacolor(r, g, b, a){
+    return "rgba(" 
+    + [r, g, b, a]
+    .join(",")
+    + ")"
+}
+
+function playBang() {
+    (new Audio("/bang.mp3")).play();
+}
+
+function playDing() {
+    (new Audio("/ding.mp3")).play();
+}
+
 module.exports = {
     sin, 
     cos, 
@@ -42,5 +57,8 @@ module.exports = {
     isin,
     degrees,
     radians,
-    PI
+    PI,
+    rgbacolor,
+    playBang,
+    playDing
 }

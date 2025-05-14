@@ -7,34 +7,156 @@
     <script src="/polygon.js"></script>
     <script src="/solid.js"></script>
     <script src="/3d.js"></script>
-    <script src="view.js"></script>
+    <script src="/view.js"></script>
+    <style>
+        #view{
+            color: rgba(135, 207, 235, 0.039);
+            /* background-color:rgba(255, 228, 196, 0.576) */
+        }
+
+        #status{
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1;
+        }
+    </style>
 </head>
 <body>
-    <canvas 
-        id="view" 
-        width="1300" 
-        height="750" 
-        style="background-color: skyblue;"
-    ></canvas>
-    
-    <div>perspective:<span id="perspective"></span></div>
-    <div>origin:<span id="origin"></span></div>
-    <div>pointer:<span id="pointer"></span></div>
+    <canvas id="view" width="1500" height="900" style="background-color: skyblue;"></canvas>
+    <div id="status"></div>
 
     <script>
 
+        const view = new View(
+            document.getElementById("view"),
+            new Perspective(0, 500, 0)
+        );
+
+        const surface = new Surface(
+            (u, v)=> u,
+            (u, v)=> v,
+            (u, v)=>(u**2 + v**2)/100,
+            [-100, 100],
+            [-100, 100],  
+            [(f, u)=> (100*f[2] - 2*u*f[0])/(2*f[1])],
+            "pink",
+            120
+        )
         
+        function waterMolecule(){
+            const bondLength = 95.84;
+            const bondAngle  = 104.45; 
+            const hydrogenRadius = 32;
+            const oxygenRadius = 73;
+
+            const h1Location = Vector.unitx.scale(
+                bondLength
+            ).rotate(
+                Vector.unitz.scale(radians(bondAngle/2))
+            );
+
+            const h2Location = Vector.unitx.scale(
+                bondLength
+            ).rotate(
+                Vector.unitz.scale(radians(-bondAngle/2))
+            );
+
+            const oxygen  = new Sphere(new Vector(0, 0, 0), oxygenRadius, "violet");
+            const hydrogen1  = new Sphere(h1Location, hydrogenRadius, "yellow");
+            const hydrogen2  = new Sphere(h2Location, hydrogenRadius, "yellow");
+
+            return [oxygen, hydrogen1, hydrogen2];
+        }
+
+        const container = Solid.unitCube(
+            0.001, rgbacolor(255, 228, 196, 0.1)
+        ).scale(400);
+
+        // const particle = Solid.unitCube().scale(10);
+
+        // particle.live(
+        //     Vector.unitx.scale(100), 
+        //     Vector.unitx.scale(400),
+        //     (s, r, v, a)=>Vector.unitz.scale(-10).add(
+        //         v.scale(-0.00001/s.mass)
+        //     ),
+        //     ()=>null,
+        //     (t, r, v, a_int)=>{
+        //         document.getElementById("status").innerHTML = 
+        //           "v:" + v.map(c=>c.toFixed(2)).join(", ") 
+        //           + ` (${v.magnitude().toFixed(2)} m/s)` + "<br>"
+
+        //         + "a:" + a_int.map(c=>c.toFixed(2)).join(", ") 
+        //           + ` (${a_int.magnitude().toFixed(2)} m/s^2)` + "<br>"
+
+        //         + "r:" + r.map(c=>c.toFixed(2)).join(", ") 
+        //           + ` (${r.magnitude().toFixed(2)} m)` + "<br>" 
+
+        //         + "t:" + t.toFixed(4) + " s"
+        //     },
+        //     ()=> null,
+        //     Vector.unitz.scale(PI/4)
+        // )
+        // particle.onCollision = playBang;
+        // particle.containerSolid = container;
+
+        const scene = [
+            container,
+            // particle,
+            // surface,
+            // Solid.unitCube().scale(new Vector(40, 40, 300))
+        ]
+
+        view.interactive(scene, ()=>null, [1, 180]);
+
+        view.fromBirdsEye(scene, rate=1.0);
+
+        // new LineSegment(
+        //     [0, 0, 0], 
+        //     [200, 0, 0]
+        // ),
+        // new LineSegment(
+        //     [0, 0, 0], 
+        //     [0, 200, 0]
+        // )
+        // ,
+        // new LineSegment(
+        //     [0, 0, 0], 
+        //     [0, 0, 200]
+        // ),
 
         // const  k = 2*Math.PI/360;
 
-        // (u, v)=> 150 * sin(k*v),
-        // (u, v)=> 150 * cos(k*v),
+
+        // elliptical cylinder 
+        // (u, v)=> 100 * cos(v),
+        //     (u, v)=> 80  * sin(v),
+        //     (u, v)=>u,
+        //     [-0, 200],
+        //     [ 0, 2*PI],
+        //     [
+        //         (f, u)=> 
+        //           (atan(-f[0]*80 / (f[1]*100)) + PI)%(2*PI),
+        //         (f, u)=> 
+        //           (atan(-f[0]*80 / (f[1]*100)) + 2*PI)%(2*PI),
+        //     ],
+
+        // (u, v)=> u,
+        // (u, v)=> v,
+        // (u, v)=>(u + v)**2/100,
+        // [-100, 100],
+        // [-100, 100],  
+        // [(f, u)=> 50*f[2]/(f[0]+f[1]) - u],
+
+        // (u, v)=> 150 * sin(v),
+        // (u, v)=> 150 * cos(v),
         // (u, v)=> u,
         // [0, 190],
-        // [0, 364],    
+        // [0, 2*PI],    
         // [
-        //     (f, u) => ((atan(-f[1]/f[0]) + 2*Math.PI)/k)%360,
-        //     (f, u) => ((atan(-f[1]/f[0]) + Math.PI)/k)%360
+        //     (f, u) => (atan(-f[1]/f[0]) +   Math.PI)%(2*Math.PI),
+        //     (f, u) => (atan(-f[1]/f[0]) + 2*Math.PI)%(2*Math.PI)
         // ],
 
         // (u, v)=> u,

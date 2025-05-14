@@ -5,7 +5,7 @@
 
 class Solid extends Object{
     constructor(
-        points, name, density
+        points, name, density=0.001, color="gold"
     ){
         super();
         this.name = name;
@@ -22,7 +22,8 @@ class Solid extends Object{
         this.maxRadius = Math.max(...this.corners.map(c=>c.subtract(this.location).magnitude()));
         this.minRadius = Math.min(...this.faces.map(f=>this.location.distance(this.corners[f[0]], this.corners[f[1]], this.corners[f[2]])));
 
-        this.density = density ? density : 0.001; //kg/m^3
+        this.density = density ; //kg/m^3
+        this.color = color;
         this.volumeValue = this.volume()
         this.mass = this.density * this.volumeValue; 
     }
@@ -67,7 +68,12 @@ class Solid extends Object{
     scale(by){
         const center = this.center();
         for(let i in this.corners){
-            this.corners[i] = center.add(this.corners[i].subtract(center).scale(by));
+            const r = this.corners[i].subtract(center);
+            if(by instanceof Vector){
+                this.corners[i] = center.add(r.prod(by));
+            } else {
+                this.corners[i] = center.add(r.scale(by));
+            }
         }
 
         this.maxRadius = Math.max(...this.corners.map(c=>c.subtract(center).magnitude()));
@@ -75,6 +81,7 @@ class Solid extends Object{
 
         this.volumeValue = this.volume()
         this.density = this.mass / this.volumeValue;
+        return this;
     }
 
     act=()=>{
@@ -85,20 +92,19 @@ class Solid extends Object{
 
         let t = Date.now()/1000;
         let deltaT = t-t1;
-        // let r = this.center(); 
 
         let a_inst = this.inst_acceleration(this, t-this.birthTime, v1, r1);
 
         let v = v1.add(
             a_inst.scale(deltaT)
         ) 
-        // const deltaR = v.scale(deltaT);
+
         let r=r1;
         if(v.magnitude() > 0){
             r = r1.add(v.scale(deltaT));
-            this.moveTo(r);
-
+            
             if(this.containerSolid){
+                this.moveTo(r);
                 let isOutSideBounds = false;
                 let cornerOutisdeBounds; 
                 const d = r.subtract(this.containerSolid.center()).magnitude();
@@ -132,26 +138,17 @@ class Solid extends Object{
                     let c1 = r1.add(c2.subtract(r));
                     let c1c2_cap = c2.subtract(c1).unit();
                     let cc = this.containerSolid.center();
-                    // const r2 = r.add(r.subtract(r1).unit().scale(this.maxRadius));
 
                     for(let f of this.containerSolid.faces){
                         const p1 = this.containerSolid.corners[f[0]];
                         const n_cap = Vector.normal(...f.slice(0, 3).map(i=>this.containerSolid.corners[i]));
                         if(
-                            // c1.subtract(p1).dot(n_cap) * 
                             cc.subtract(p1).dot(n_cap) * 
                             c2.subtract(p1).dot(n_cap) <= 0
                         ){
                             const v_perp = v.proj(n_cap);
 
-                            if(
-                                // (
-                                //     v1.proj(n_cap).magnitude()<1 
-                                //     // || 
-                                //     //v_perp.magnitude()<1
-                                // ) && 
-                                c1.subtract(p1).dot(n_cap)==0
-                            ){
+                            if(Math.abs(c1.subtract(p1).dot(n_cap)) < 0.01){
                                 v = v.subtract(v_perp);
                                 r = r1.add(v.scale(deltaT));
                                 break;
@@ -173,57 +170,12 @@ class Solid extends Object{
                             const hypot = dn/cos_theta;
 
                             c2 = c2.add(c1c2_cap.scale(-hypot));
-                            r  = r1.add(c2.subtract(c1)); 
-
+                            r  = r1.add(c2.subtract(c1));
+                            
                             break;
                         }
                     }
                 }
-
-                // if(
-                //     this.containerSolid.minRadius 
-                //     < r.subtract(this.containerSolid.center()).magnitude() + this.maxRadius
-                // ) {
-
-                //     for(let b of this.bounderies){
-                //         // (r-r0).n = 0   -> {r lies on the plane}
-                //         // (r-r0).n >< 0  -> {distance of r from the plane}
-                //         const np = v.proj(b.n);
-
-                //         if(r1.subtract(b.r0).dot(b.n)==0){
-                //             if(v1.proj(b.n).magnitude()<1 || np.magnitude()<1){
-                //                 v = v.subtract(np);
-                //             }
-                //             continue;
-                //         }
-
-                //         r = r1.add(v.scale(deltaT));
-                //         const c = r.subtract(b.r0).dot(b.n);
-
-                //         if(c<0){
-                //             if(np.dot(b.n) < 0){
-                //                 v = v.add(np.scale(-2));
-
-                //                 // r_final = r + (r_distance_from_boundery_plan/(n.v_unit))v_unit
-                //                 const v_unit = v.unit()
-                //                 r = r.add(
-                //                     v_unit.scale(
-                //                         Math.abs(c)
-                //                         /v_unit.dot(b.n)
-                //                     )
-                //                 )
-
-                //                 if(np.magnitude()<1){
-                //                     v = v.subtract(np);
-                //                 }else{
-                //                     this.angularVelocity = this.angularVelocity.scale(-1);
-                //                     this.onCollision(t-this.birthTime, r, v, b);
-                //                 }
-                //                 break;
-                //             }                    
-                //         }
-                //     }
-                // }
             }
 
             if(r.subtract(r1).magnitude()>0 && v.magnitude()>0.01){
@@ -266,7 +218,6 @@ class Solid extends Object{
         inst_acceleration = (t, v, r)=>Vector.zero(), 
         onMotion=()=>null, 
         onStateChange=()=>null,
-        bounderies=[],
         onCollision=()=>null,
         angularVelocity = Vector.zero(),
         container = null
@@ -281,7 +232,6 @@ class Solid extends Object{
         this.inst_acceleration = inst_acceleration;
         this.onMotion = onMotion;
         this.onStateChange = onStateChange;
-        this.bounderies = bounderies;
         this.onCollision = onCollision;
         this.angularVelocity = angularVelocity;
         this.containerSolid = container;
@@ -525,6 +475,19 @@ class Solid extends Object{
             )
         }
         return totalVolume;
+    }
+
+    static unitCube(density=0.001, color="gold"){
+        return new Solid([
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [1, 1, 1],
+            [0, 1, 1],
+        ], 'initcube', density, color);
     }
 }
 
